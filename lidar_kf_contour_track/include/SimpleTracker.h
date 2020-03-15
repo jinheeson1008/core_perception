@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
+/// \file SimpleTracker.h
+/// \brief Kalman Filter based object tracker
+/// \author Hatem Darweesh
+/// \date Aug 11, 2016
+
 #ifndef SimpleTracker_H_
 #define SimpleTracker_H_
 
@@ -30,8 +35,9 @@ namespace ContourTrackerNS
 
 #define DEBUG_TRACKER 0
 #define NEVER_GORGET_TIME -1000
-#define ACCELERATION_CALC_TIME 0.25
-#define ACCELERATION_DECISION_VALUE 0.5
+#define ACCELERATION_CALC_TIME 1.0
+#define ACCELERATION_DECISION_VALUE 0.25
+#define VELOCITY_DECISION_VALUE 0.2
 #define PREV_TRACK_SIZE 25
 #define PREV_TRACK_SMOOTH_DATA 0.475
 #define PREV_TRACK_SMOOTH_SMOOTH 0.3
@@ -91,6 +97,8 @@ private:
 	int nMeasure;
 	int MinAppearanceCount;
 	double time_diff;
+	double total_t;
+	double prev_vel_diff;
 
 public:
 	int m_bUpdated;
@@ -106,10 +114,8 @@ public:
 
 	KFTrackV(double x, double y, double a, long id, double _dt, int _MinAppearanceCount = 1)
 	{
-//		errorSmoother.result.MovCov = 0.125;
-//		errorSmoother.result.MeasureCov = 0.1;
-//		errorSmoother.result.p = 1;
-//		errorSmoother.result.x = 0;
+		prev_vel_diff = 0;
+		total_t = 0;
 		time_diff = 0;
 		region_id = -1;
 		forget_time = NEVER_GORGET_TIME; // this is very bad , dangerous
@@ -160,7 +166,7 @@ public:
 		//errorSmoother.Update(a);
 	}
 
-	void UpdateTracking(double _dt, const PlannerHNS::DetectedObject& oldObj, PlannerHNS::DetectedObject& predObj)
+	void UpdateTracking(double _dt, const PlannerHNS::DetectedObject& oldObj, PlannerHNS::DetectedObject& predObj, bool bStepByStep = false)
 	{
 
 
@@ -184,22 +190,31 @@ public:
 
 		prediction = m_filter.correct(measurement);
 
-		predObj.center.pos.x = prediction.at<float>(0);
-		predObj.center.pos.y = prediction.at<float>(1);
+		if(!bStepByStep)
+		{
+			predObj.center.pos.x = prediction.at<float>(0);
+			predObj.center.pos.y = prediction.at<float>(1);
+		}
+		else
+		{
+			predObj.center.pos.x = oldObj.center.pos.x;
+			predObj.center.pos.y = oldObj.center.pos.y;
+		}
 		double vx  = prediction.at<float>(2);
 		double vy  = prediction.at<float>(3);
 
 		double currA = 0;
 		double currV = 0;
-		double currAccel = 0;
+		double currAccel = prev_accel;
+		time_diff += _dt;
 
 		if(m_iLife > 1)
 		{
-			currV = sqrt(vx*vx+vy*vy);
-
 			double diff_y = predObj.center.pos.y - prev_y;
 			double diff_x = predObj.center.pos.x - prev_x;
-			if(hypot(diff_y, diff_x) > 0.2)
+			double d_diff = hypot(diff_y, diff_x);
+			total_t += _dt;
+			if(d_diff > 0.2)
 			{
 				currA = atan2(diff_y, diff_x);
 			}
@@ -207,6 +222,11 @@ public:
 			{
 				currA = prev_a;
 			}
+
+			if(!bStepByStep)
+				currV = sqrt(vx*vx+vy*vy);
+			else
+				currV = oldObj.center.v;
 		}
 
 
@@ -215,29 +235,21 @@ public:
 			predObj.center.pos.a = currA;
 			predObj.center.v = currV;
 			predObj.bVelocity = true;
-//			predObj.acceleration_raw = (currV - prev_v)/_dt;
 			if(time_diff > ACCELERATION_CALC_TIME)
 			{
-				currAccel = (currV - prev_big_v)/time_diff;
+				prev_vel_diff = (currV - prev_big_v);
+				currAccel = prev_vel_diff/time_diff;
 				prev_big_v = currV;
 				time_diff = 0;
 			}
-			else
-			{
-				time_diff += _dt;
-				currAccel = prev_accel;
-			}
 
 			predObj.acceleration_raw = currAccel;
-			if(fabs(predObj.acceleration_raw) < ACCELERATION_DECISION_VALUE)
-				predObj.acceleration_desc = 0;
-			else if(predObj.acceleration_raw > ACCELERATION_DECISION_VALUE)
+			if(prev_vel_diff > VELOCITY_DECISION_VALUE)
 				predObj.acceleration_desc = 1;
-			else if(predObj.acceleration_raw < -ACCELERATION_DECISION_VALUE)
+			else if(prev_vel_diff < -VELOCITY_DECISION_VALUE)
 				predObj.acceleration_desc = -1;
-
-			//predObj.acceleration_desc = UtilityHNS::UtilityH::GetSign(predObj.acceleration_raw - prev_big_a);
-			//std::cout << "Acceleraaaaaaaaaaaaaaate : " << predObj.acceleration << ", BigV:" << prev_big_v << std::endl;
+			else
+				predObj.acceleration_desc = 0;
 		}
 		else
 		{

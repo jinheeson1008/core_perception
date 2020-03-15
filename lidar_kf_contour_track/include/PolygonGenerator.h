@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+
+/// \file  PolygonGenerator.h
+/// \brief Generate convex hull from point cloud cluster of detected object
+/// \author Hatem Darweesh
+/// \date Nov 2, 2016
+
 #ifndef OP_POLYGONGENERATOR_H_
 #define OP_POLYGONGENERATOR_H_
 
@@ -93,6 +99,7 @@ public:
 	PlannerHNS::GPSPoint m_Centroid;
 	std::vector<QuarterView> m_Quarters;
 	std::vector<PlannerHNS::GPSPoint> m_Polygon;
+	std::vector<PlannerHNS::GPSPoint> m_PolygonRes;
 
 	PolygonGenerator(int nQuarters);
 	virtual ~PolygonGenerator();
