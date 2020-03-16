@@ -18,6 +18,7 @@
 #include "op_ros_helpers/op_ROSHelpers.h"
 #include "op_planner/MappingHelpers.h"
 #include "op_planner/PlannerH.h"
+#include "op_planner/KmlMapLoader.h"
 
 namespace ContourTrackerNS
 {
@@ -871,7 +872,8 @@ void ContourTracker::MainLoop()
 
 		if(m_MapFilterDistance > 0 && m_MapType == PlannerHNS::MAP_KML_FILE && !bMap)
 		{
-			PlannerHNS::MappingHelpers::LoadKML(m_MapPath, m_Map);
+			PlannerHNS::KmlMapLoader kml_loader;
+			kml_loader.LoadKML(m_MapPath, m_Map);
 			if(m_Map.roadSegments.size() > 0)
 			{
 				bMap = true;
