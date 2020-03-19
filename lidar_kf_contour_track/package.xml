@@ -17,4 +17,5 @@
   <depend>op_ros_helpers</depend>
   <depend>roscpp</depend>
   <depend>tf</depend>
+  <depend>lanelet2_extension</depend>
 </package>

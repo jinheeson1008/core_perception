@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   autoware_msgs
   autoware_can_msgs
+  lanelet2_extension
   )
 
 find_package(OpenCV REQUIRED)
