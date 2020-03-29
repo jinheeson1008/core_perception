@@ -39,7 +39,7 @@ std::vector<PlannerHNS::GPSPoint> PolygonGenerator::EstimateClusterPolygon(const
 	{
 		p.pos.x = cluster.points.at(i).x;
 		p.pos.y = cluster.points.at(i).y;
-		p.pos.z = original_centroid.z;
+		p.pos.z = cluster.points.at(i).z; //original_centroid.z;
 
 		PlannerHNS::GPSPoint v(p.pos.x - original_centroid.x , p.pos.y - original_centroid.y, 0, 0);
 		p.cost = pointNorm(v);
@@ -60,36 +60,45 @@ std::vector<PlannerHNS::GPSPoint> PolygonGenerator::EstimateClusterPolygon(const
                         m_Polygon.push_back(wp.pos);
 	}
 
-	//Fix Resolution:
-	bool bChange = true;
-	while (bChange && m_Polygon.size()>1)
+	if(m_Polygon.size() > 0)
 	{
-		bChange = false;
-		m_PolygonRes.clear();
-		PlannerHNS::GPSPoint p1 =  m_Polygon.at(m_Polygon.size()-1);
-		for(unsigned int i=0; i< m_Polygon.size(); i++)
-		{
-		    m_PolygonRes.push_back(p1);
-                    PlannerHNS::GPSPoint p2 = m_Polygon.at(i);
-                    double d = hypot(p2.y- p1.y, p2.x - p1.x);
-                    if(d > polygon_resolution)
-                    {
-                        PlannerHNS::GPSPoint center_p = p1;
-                        center_p.x = (p2.x + p1.x)/2.0;
-                        center_p.y = (p2.y + p1.y)/2.0;
-                        m_PolygonRes.push_back(center_p);
-                        bChange = true;
-                    }
+		m_Polygon.push_back(m_Polygon.at(0));
+	}
 
-                    p1 = p2;
+	//Fix Resolution:
+	if(polygon_resolution > 0)
+	{
+		bool bChange = true;
+		while (bChange && m_Polygon.size()>1)
+		{
+			bChange = false;
+			m_PolygonRes.clear();
+			PlannerHNS::GPSPoint p1 =  m_Polygon.at(m_Polygon.size()-1);
+			for(unsigned int i=0; i< m_Polygon.size(); i++)
+			{
+				m_PolygonRes.push_back(p1);
+						PlannerHNS::GPSPoint p2 = m_Polygon.at(i);
+						double d = hypot(p2.y- p1.y, p2.x - p1.x);
+						if(d > polygon_resolution)
+						{
+							PlannerHNS::GPSPoint center_p = p1;
+							center_p.x = (p2.x + p1.x)/2.0;
+							center_p.y = (p2.y + p1.y)/2.0;
+							m_PolygonRes.push_back(center_p);
+							bChange = true;
+						}
+
+						p1 = p2;
+			}
+			m_Polygon = m_PolygonRes;
 		}
-		m_Polygon = m_PolygonRes;
 	}
 	PlannerHNS::GPSPoint sum_p;
 	for(unsigned int i = 0 ; i< m_Polygon.size(); i++)
 	{
 		sum_p.x += m_Polygon.at(i).x;
 		sum_p.y += m_Polygon.at(i).y;
+		sum_p.z += m_Polygon.at(i).z;
 	}
 
 	new_centroid = original_centroid;
@@ -98,6 +107,7 @@ std::vector<PlannerHNS::GPSPoint> PolygonGenerator::EstimateClusterPolygon(const
 	{
 		new_centroid.x = sum_p.x / (double)m_Polygon.size();
 		new_centroid.y = sum_p.y / (double)m_Polygon.size();
+		new_centroid.z = sum_p.z / (double)m_Polygon.size();
 	}
 
 	return m_Polygon;

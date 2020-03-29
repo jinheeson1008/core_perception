@@ -64,12 +64,14 @@ public:
 	double  nQuarters;
 	double 	PolygonRes;
 	TRACKING_TYPE	trackingType; // 0 association only , 1 simple tracking, 2 contour based tracking
-	bool    bEnableSimulation;
-	bool 	bEnableStepByStep;
-	bool 	bEnableLogging;
+	bool bEnableSimulation;
+	bool bEnableStepByStep;
+	bool bEnableLogging;
 	bool bEnableTTC;
 	bool bEnableLaneChange;
 	bool bEnableBenchmark;
+	bool bEnableInternalVisualization;
+	bool bUseDetectionHulls;
 
 	PerceptionParams()
 	{
@@ -87,6 +89,8 @@ public:
 		bEnableTTC = false;
 		bEnableLaneChange = false;
 		bEnableBenchmark = false;
+		bEnableInternalVisualization = false;
+		bUseDetectionHulls = false;
 	}
 };
 
@@ -137,10 +141,11 @@ protected:
 	int frame_count_;
 	std::string kitti_data_dir_;
 	std::string result_file_path_;
-	std::string pointcloud_frame ;
-	std::string tracking_frame;
+	//std::string pointcloud_frame ;
+	std::string target_tracking_frame;
+	std::string source_data_frame;
 	tf::TransformListener tf_listener;
-	tf::StampedTransform local2global;
+	tf::StampedTransform m_local2global;
 
 	//ROS subscribers
 	ros::NodeHandle nh;
@@ -179,10 +184,11 @@ protected:
 	void GetFrontTrajectories(std::vector<PlannerHNS::Lane*>& lanes, const PlannerHNS::WayPoint& currState, const double& max_distance, std::vector<std::vector<PlannerHNS::WayPoint> >& trajectories);
 	void ReadNodeParams();
 	void ReadCommonParams();
-	void LogAndSend();
-	void transformPoseToGlobal(const autoware_msgs::CloudClusterArray& input, autoware_msgs::CloudClusterArray& transformed_input);
-	void transformPoseToGlobal(const autoware_msgs::DetectedObjectArray& input, autoware_msgs::DetectedObjectArray& transformed_input);
-	void transformPoseToLocal(jsk_recognition_msgs::BoundingBoxArray& jskbboxes_output, autoware_msgs::DetectedObjectArray& detected_objects_output);
+	void Log();
+	void PostProcess();
+	void transformPoseToGlobal(const std::string& src_frame, const std::string& dst_frame,const autoware_msgs::CloudClusterArray& input, autoware_msgs::CloudClusterArray& transformed_input);
+	void transformDetectedObjects(const std::string& src_frame, const std::string& dst_frame, const tf::StampedTransform& trans, const autoware_msgs::DetectedObjectArray& input, autoware_msgs::DetectedObjectArray& transformed_input);
+	void transformPoseToLocal(const std::string& src_frame, const std::string& dst_frame, jsk_recognition_msgs::BoundingBoxArray& jskbboxes_output, autoware_msgs::DetectedObjectArray& detected_objects_output, tf::StampedTransform& trans);
 	void dumpResultText(autoware_msgs::DetectedObjectArray& detected_objects);
 
 public:

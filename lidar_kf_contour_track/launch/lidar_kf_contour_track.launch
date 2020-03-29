@@ -1,6 +1,9 @@
 <launch>
+	<arg name="namespace" default="/detection/contour_tracker"/>
   	<arg name="tracker_input_topic" default="/detection/lidar_detector/objects" />
-  	<arg name="tracker_output_topic" default="/detection/object_tracker/objects" />
+  	<arg name="tracker_output_topic" default="/detection/contour_tracker/objects" /> 
+  	
+  	<arg name="tracking_frame" default="/map" />
 
 	<arg name="vehicle_width" default="1.85" />
 	<arg name="vehicle_length" default="4.2" />	
@@ -16,14 +19,17 @@
 	<arg name="trust_counter" default="4" />
 		
 	<arg name="enableSimulationMode" default="false" />
-	<arg name="enableStepByStepMode" default="false" />
+	<arg name="enableStepByStepMode" default="false" />	
 	
 	<arg name="vector_map_filter_distance" default="2.0" /> <!-- set 0 to disable vector map filtering  -->
 	<arg name="enableLogging" default="false" />
+	<arg name="enableInternalVisualization" default="false" />
+	<arg name="useDetectionHulls" default="false" />
 
 	<node pkg="lidar_kf_contour_track" type="lidar_kf_contour_track" name="lidar_kf_contour_track" output="screen">
 
-    	<param name="vehicle_width" value="$(arg vehicle_width)" />
+    <param name="tracking_frame" value="$(arg tracking_frame)" />
+    <param name="vehicle_width" value="$(arg vehicle_width)" />
 	<param name="vehicle_length" value="$(arg vehicle_length)" />		
 	<param name="min_object_size" value="$(arg min_object_size)" />
 	<param name="max_object_size" value="$(arg max_object_size)" />
@@ -37,15 +43,16 @@
 	<param name="trust_counter" value="$(arg trust_counter)" />		
 		
 	<param name="enableSimulationMode" value="$(arg enableSimulationMode)" />
-	<param name="enableStepByStepMode" value="$(arg enableStepByStepMode)" />
+	<param name="enableStepByStepMode" value="$(arg enableStepByStepMode)" />	
 			
 	<param name="vector_map_filter_distance" value="$(arg vector_map_filter_distance)" />
 	<param name="enableLogging" value="$(arg enableLogging)" />
-
-    <remap from="detection/lidar_detector/objects" to="$(arg tracker_input_topic)" />
-    <remap from="detection/object_tracker/objects" to="$(arg tracker_output_topic)" />
-				
+	<param name="enableInternalVisualization" value="$(arg enableInternalVisualization)" />
+	<param name="useDetectionHulls" value="$(arg useDetectionHulls)" />
 
   </node>
+  
+  <node pkg="detected_objects_visualizer" type="visualize_detected_objects" name="contour_track_visualization_01"
+        output="screen" ns="$(arg namespace)"/>
 
 </launch>

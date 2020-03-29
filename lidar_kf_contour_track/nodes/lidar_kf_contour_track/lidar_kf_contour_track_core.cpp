@@ -39,8 +39,8 @@ ContourTracker::ContourTracker()
 	m_MapType = PlannerHNS::MAP_KML_FILE;
 	bMap = false;
 	bNewCurrentPos = false;
-	pointcloud_frame = "velodyne";
-	tracking_frame = "world";
+	//pointcloud_frame = "velodyne";
+	target_tracking_frame = "map";
 	kitti_data_dir_ = "~/KITTI_Data/2011_09_26/2011_09_26_drive_0005_sync/";
 	result_file_path_ = kitti_data_dir_ + "benchmark_results.txt";
 	frame_count_ = 0;
@@ -53,9 +53,9 @@ ContourTracker::ContourTracker()
 	m_ObstacleTracking.m_bEnableStepByStep = m_Params.bEnableStepByStep;
 	m_ObstacleTracking.InitSimpleTracker();
 
-	sub_cloud_clusters = nh.subscribe("/detection/lidar_detector/cloud_clusters", 1, &ContourTracker::callbackGetCloudClusters, this);
+	//sub_cloud_clusters = nh.subscribe("/detection/lidar_detector/cloud_clusters", 1, &ContourTracker::callbackGetCloudClusters, this);
 	sub_detected_objects = nh.subscribe("/detection/lidar_detector/objects", 1, &ContourTracker::callbackGetDetectedObjects, this);
-	pub_AllTrackedObjects = nh.advertise<autoware_msgs::DetectedObjectArray>("/detection/object_tracker/objects", 1);
+	pub_AllTrackedObjects = nh.advertise<autoware_msgs::DetectedObjectArray>("/detection/contour_tracker/objects", 1);
 	sub_current_pose = nh.subscribe("/current_pose",   1, &ContourTracker::callbackGetCurrentPose, 	this);
 
 	if(m_VelocitySource == 0)
@@ -65,9 +65,16 @@ ContourTracker::ContourTracker()
 	else if(m_VelocitySource == 2)
 		sub_can_info = nh.subscribe("/can_info", 1, &ContourTracker::callbackGetCanInfo, this);
 
-	pub_DetectedPolygonsRviz = nh.advertise<visualization_msgs::MarkerArray>("detected_polygons", 1);
-	pub_TrackedObstaclesRviz = nh.advertise<jsk_recognition_msgs::BoundingBoxArray>("op_planner_tracked_boxes", 1);
-	pub_TTC_PathRviz = nh.advertise<visualization_msgs::MarkerArray>("ttc_direct_path", 1);
+	if(m_Params.bEnableInternalVisualization)
+	{
+		pub_DetectedPolygonsRviz = nh.advertise<visualization_msgs::MarkerArray>("detected_polygons", 1);
+		pub_TrackedObstaclesRviz = nh.advertise<jsk_recognition_msgs::BoundingBoxArray>("op_planner_tracked_boxes", 1);
+	}
+
+	if(m_Params.bEnableTTC)
+	{
+		pub_TTC_PathRviz = nh.advertise<visualization_msgs::MarkerArray>("ttc_direct_path", 1);
+	}
 
 	//Mapping Section
 	if(m_MapFilterDistance > 0.25)
@@ -115,6 +122,7 @@ ContourTracker::~ContourTracker()
 void ContourTracker::ReadNodeParams()
 {
 	ros::NodeHandle _nh;
+	_nh.getParam("/lidar_kf_contour_track/tracking_frame" 			, target_tracking_frame);
 	_nh.getParam("/lidar_kf_contour_track/vehicle_width" 			, m_Params.VehicleWidth);
 	_nh.getParam("/lidar_kf_contour_track/vehicle_length" 			, m_Params.VehicleLength);
 	_nh.getParam("/lidar_kf_contour_track/min_object_size" 			, m_Params.MinObjSize);
@@ -123,12 +131,13 @@ void ContourTracker::ReadNodeParams()
 	_nh.getParam("/lidar_kf_contour_track/polygon_resolution" 		, m_Params.PolygonRes);
 	_nh.getParam("/lidar_kf_contour_track/enableSimulationMode" 	, m_Params.bEnableSimulation);
 	_nh.getParam("/lidar_kf_contour_track/enableStepByStepMode" 	, m_Params.bEnableStepByStep);
+	_nh.getParam("/lidar_kf_contour_track/useDetectionHulls" 		, m_Params.bUseDetectionHulls);
 
 
 	_nh.getParam("/lidar_kf_contour_track/max_association_distance" , m_ObstacleTracking.m_MAX_ASSOCIATION_DISTANCE);
 	_nh.getParam("/lidar_kf_contour_track/max_association_size_diff" , m_ObstacleTracking.m_MAX_ASSOCIATION_SIZE_DIFF);
 	_nh.getParam("/lidar_kf_contour_track/enableLogging" , m_Params.bEnableLogging);
-	//_nh.getParam("/lidar_kf_contour_track/enableTTC" , m_Params.bEnableTTC);
+	_nh.getParam("/lidar_kf_contour_track/enableInternalVisualization" , m_Params.bEnableInternalVisualization);
 
 
 	int tracking_type = 0;
@@ -219,20 +228,8 @@ void ContourTracker::dumpResultText(autoware_msgs::DetectedObjectArray& detected
   frame_count_ ++;
 }
 
-void ContourTracker::transformPoseToGlobal(const autoware_msgs::DetectedObjectArray& input, autoware_msgs::DetectedObjectArray& transformed_input)
+void ContourTracker::transformDetectedObjects(const std::string& src_frame, const std::string& dst_frame, const tf::StampedTransform& trans, const autoware_msgs::DetectedObjectArray& input, autoware_msgs::DetectedObjectArray& transformed_input)
 {
-  try
-  {
-    tf_listener.waitForTransform(pointcloud_frame, tracking_frame, ros::Time(0), ros::Duration(1.0));
-    // get sensor -> world frame
-    tf_listener.lookupTransform(tracking_frame, pointcloud_frame, ros::Time(0), local2global);
-  }
-  catch (tf::TransformException& ex)
-  {
-    ROS_ERROR("%s", ex.what());
-    ros::Duration(1.0).sleep();
-  }
-
   transformed_input.header = input.header;
   for (size_t i = 0; i < input.objects.size(); i++)
   {
@@ -242,12 +239,15 @@ void ContourTracker::transformPoseToGlobal(const autoware_msgs::DetectedObjectAr
 
     autoware_msgs::DetectedObject dd;
 	dd = input.objects.at(i);
-	dd.header.frame_id = tracking_frame;
-	dd.convex_hull.header.frame_id = tracking_frame;
+	dd.header.frame_id = dst_frame;
+	dd.header.stamp = ros::Time();
+	dd.convex_hull.header.frame_id = dst_frame;
+	dd.convex_hull.header.stamp = ros::Time();
+	dd.space_frame = dst_frame;
 
     input_object_pose.setOrigin(tf::Vector3(input.objects.at(i).pose.position.x, input.objects.at(i).pose.position.y, input.objects.at(i).pose.position.z));
     input_object_pose.setRotation(tf::Quaternion(input.objects.at(i).pose.orientation.x, input.objects.at(i).pose.orientation.y, input.objects.at(i).pose.orientation.z, input.objects.at(i).pose.orientation.w));
-    tf::poseTFToMsg(local2global * input_object_pose, pose_out.pose);
+    tf::poseTFToMsg(trans * input_object_pose, pose_out.pose);
     dd.pose = pose_out.pose;
 
     dd.convex_hull.polygon.points.clear();
@@ -255,12 +255,15 @@ void ContourTracker::transformPoseToGlobal(const autoware_msgs::DetectedObjectAr
     for(unsigned int j=0; j < input.objects.at(i).convex_hull.polygon.points.size(); j++)
     {
     	p = input.objects.at(i).convex_hull.polygon.points.at(j);
-    	poly_pose.setOrigin(tf::Vector3(p.x, p.y, p.z));
-    	poly_pose.setRotation(tf::Quaternion(input.objects.at(i).pose.orientation.x, input.objects.at(i).pose.orientation.y, input.objects.at(i).pose.orientation.z, input.objects.at(i).pose.orientation.w));
-    	tf::poseTFToMsg(local2global * poly_pose, pose_out.pose);
-    	p.x = pose_out.pose.position.x;
-    	p.y = pose_out.pose.position.y;
-    	p.z = pose_out.pose.position.z;
+    	if(m_Params.bUseDetectionHulls == true)
+    	{
+			poly_pose.setOrigin(tf::Vector3(p.x, p.y, p.z));
+			poly_pose.setRotation(tf::Quaternion(input.objects.at(i).pose.orientation.x, input.objects.at(i).pose.orientation.y, input.objects.at(i).pose.orientation.z, input.objects.at(i).pose.orientation.w));
+			tf::poseTFToMsg(trans * poly_pose, pose_out.pose);
+			p.x = pose_out.pose.position.x;
+			p.y = pose_out.pose.position.y;
+			p.z = pose_out.pose.position.z;
+    	}
     	dd.convex_hull.polygon.points.push_back(p);
     }
 
@@ -268,13 +271,15 @@ void ContourTracker::transformPoseToGlobal(const autoware_msgs::DetectedObjectAr
   }
 }
 
-void ContourTracker::transformPoseToGlobal(const autoware_msgs::CloudClusterArray& input, autoware_msgs::CloudClusterArray& transformed_input)
+void ContourTracker::transformPoseToGlobal(const std::string& src_frame, const std::string& dst_frame, const autoware_msgs::CloudClusterArray& input, autoware_msgs::CloudClusterArray& transformed_input)
 {
+	tf::StampedTransform local2global;
+
   try
   {
-    tf_listener.waitForTransform(pointcloud_frame, tracking_frame, ros::Time(0), ros::Duration(1.0));
+    tf_listener.waitForTransform(src_frame, dst_frame, ros::Time(0), ros::Duration(1.0));
     // get sensor -> world frame
-    tf_listener.lookupTransform(tracking_frame, pointcloud_frame, ros::Time(0), local2global);
+    tf_listener.lookupTransform(dst_frame, src_frame, ros::Time(0), local2global);
   }
   catch (tf::TransformException& ex)
   {
@@ -312,14 +317,14 @@ void ContourTracker::transformPoseToGlobal(const autoware_msgs::CloudClusterArra
   }
 }
 
-void ContourTracker::transformPoseToLocal(jsk_recognition_msgs::BoundingBoxArray& jskbboxes_output, autoware_msgs::DetectedObjectArray& detected_objects_output)
+void ContourTracker::transformPoseToLocal(const std::string& src_frame, const std::string& dst_frame, jsk_recognition_msgs::BoundingBoxArray& jskbboxes_output, autoware_msgs::DetectedObjectArray& detected_objects_output, tf::StampedTransform& trans)
 {
   for (size_t i = 0; i < detected_objects_output.objects.size(); i++)
   {
     geometry_msgs::PoseStamped detected_pose_in, detected_pose_out;
 
     detected_pose_in.header = jskbboxes_output.header;
-    detected_pose_in.header.frame_id = tracking_frame;
+    detected_pose_in.header.frame_id = src_frame;
     detected_pose_in.pose = detected_objects_output.objects[i].pose;
 
     tf::Transform output_object_pose;
@@ -329,18 +334,18 @@ void ContourTracker::transformPoseToLocal(jsk_recognition_msgs::BoundingBoxArray
     output_object_pose.setRotation(tf::Quaternion(
         detected_objects_output.objects[i].pose.orientation.x, detected_objects_output.objects[i].pose.orientation.y,
         detected_objects_output.objects[i].pose.orientation.z, detected_objects_output.objects[i].pose.orientation.w));
-    tf::poseTFToMsg(local2global.inverse() * output_object_pose, detected_pose_out.pose);
+    tf::poseTFToMsg(trans.inverse() * output_object_pose, detected_pose_out.pose);
 
-    detected_objects_output.objects[i].header.frame_id = pointcloud_frame;
+    detected_objects_output.objects[i].header.frame_id = dst_frame;
     detected_objects_output.objects[i].pose = detected_pose_out.pose;
   }
-  detected_objects_output.header.frame_id = pointcloud_frame;
+  detected_objects_output.header.frame_id = dst_frame;
 
   for (size_t i = 0; i < jskbboxes_output.boxes.size(); i++)
   {
     geometry_msgs::PoseStamped jsk_pose_in, jsk_pose_out;
     jsk_pose_in.header = jskbboxes_output.header;
-    jsk_pose_in.header.frame_id = tracking_frame;
+    jsk_pose_in.header.frame_id = src_frame;
     jsk_pose_in.pose = jskbboxes_output.boxes[i].pose;
 
     tf::Transform output_bbox_pose;
@@ -350,12 +355,12 @@ void ContourTracker::transformPoseToLocal(jsk_recognition_msgs::BoundingBoxArray
     output_bbox_pose.setRotation(
         tf::Quaternion(jskbboxes_output.boxes[i].pose.orientation.x, jskbboxes_output.boxes[i].pose.orientation.y,
                        jskbboxes_output.boxes[i].pose.orientation.z, jskbboxes_output.boxes[i].pose.orientation.w));
-    tf::poseTFToMsg(local2global.inverse() * output_bbox_pose, jsk_pose_out.pose);
+    tf::poseTFToMsg(trans.inverse() * output_bbox_pose, jsk_pose_out.pose);
 
-    jskbboxes_output.boxes[i].header.frame_id = pointcloud_frame;
+    jskbboxes_output.boxes[i].header.frame_id = dst_frame;
     jskbboxes_output.boxes[i].pose = jsk_pose_out.pose;
   }
-  jskbboxes_output.header.frame_id = pointcloud_frame;
+  jskbboxes_output.header.frame_id = dst_frame;
 }
 
 void ContourTracker::callbackGetDetectedObjects(const autoware_msgs::DetectedObjectArrayConstPtr& msg)
@@ -363,10 +368,23 @@ void ContourTracker::callbackGetDetectedObjects(const autoware_msgs::DetectedObj
 	if(bNewCurrentPos || m_Params.bEnableSimulation)
 	{
 		autoware_msgs::DetectedObjectArray localObjects = *msg;
+		source_data_frame = msg->header.frame_id;
 
-		if(msg->header.frame_id.compare("velodyne") == 0)
+		if(source_data_frame.compare(target_tracking_frame) > 0)
 		{
-			transformPoseToGlobal(*msg, localObjects);
+		  try
+		  {
+			tf_listener.waitForTransform(source_data_frame, target_tracking_frame, ros::Time(0), ros::Duration(1.0));
+			// get sensor -> world frame
+			tf_listener.lookupTransform(target_tracking_frame, source_data_frame, ros::Time(0), m_local2global);
+		  }
+		  catch (tf::TransformException& ex)
+		  {
+			ROS_ERROR("%s", ex.what());
+			ros::Duration(1.0).sleep();
+		  }
+
+			transformDetectedObjects(source_data_frame, target_tracking_frame, m_local2global, *msg, localObjects);
 		}
 
 		ImportDetectedObjects(localObjects, m_OriginalClusters);
@@ -374,7 +392,7 @@ void ContourTracker::callbackGetDetectedObjects(const autoware_msgs::DetectedObj
 		struct timespec  tracking_timer;
 		UtilityHNS::UtilityH::GetTickCount(tracking_timer);
 
-		//std::cout << "Filter the detected Obstacles: " << msg->clusters.size() << ", " << m_OriginalClusters.size() << std::endl;
+		//std::cout << "Filter the detected Obstacles: " << msg->objects.size() << ", " << m_OriginalClusters.size() << std::endl;
 
 		m_ObstacleTracking.DoOneStep(m_CurrentPos, m_OriginalClusters, m_Params.trackingType);
 
@@ -382,13 +400,50 @@ void ContourTracker::callbackGetDetectedObjects(const autoware_msgs::DetectedObj
 		m_dt  = UtilityHNS::UtilityH::GetTimeDiffNow(m_loop_timer);
 		UtilityHNS::UtilityH::GetTickCount(m_loop_timer);
 
-		LogAndSend();
-		VisualizeLocalTracking();
+		PostProcess();
+	}
+}
 
-		if(m_Params.bEnableTTC)
-		{
-			CalculateTTC(m_ObstacleTracking.m_DetectedObjects, m_CurrentPos, m_Map);
-		}
+void ContourTracker::PostProcess()
+{
+	m_OutPutResults.objects.clear();
+	autoware_msgs::DetectedObject obj;
+	for(unsigned int i = 0 ; i <m_ObstacleTracking.m_DetectedObjects.size(); i++)
+	{
+		PlannerHNS::ROSHelpers::ConvertFromOpenPlannerDetectedObjectToAutowareDetectedObject(m_ObstacleTracking.m_DetectedObjects.at(i), m_Params.bEnableSimulation, obj);
+		m_OutPutResults.objects.push_back(obj);
+	}
+
+	tf::Transform g2ltrans = m_local2global.inverse();
+	tf::StampedTransform global2local;
+	global2local.setData(g2ltrans);
+
+	autoware_msgs::DetectedObjectArray outPutResultsLocal;
+	transformDetectedObjects(target_tracking_frame, source_data_frame , global2local, m_OutPutResults, outPutResultsLocal);
+
+	outPutResultsLocal.header.frame_id = source_data_frame;
+	outPutResultsLocal.header.stamp  = ros::Time();
+
+	pub_AllTrackedObjects.publish(outPutResultsLocal);
+
+	if(m_Params.bEnableLogging)
+	{
+		Log();
+	}
+
+	if(m_Params.bEnableInternalVisualization)
+	{
+		VisualizeLocalTracking();
+	}
+
+	if(m_Params.bEnableTTC)
+	{
+		CalculateTTC(m_ObstacleTracking.m_DetectedObjects, m_CurrentPos, m_Map);
+	}
+
+	if(m_Params.bEnableBenchmark)
+	{
+	  dumpResultText(m_OutPutResults);
 	}
 }
 
@@ -397,9 +452,9 @@ void ContourTracker::callbackGetCloudClusters(const autoware_msgs::CloudClusterA
 	if(bNewCurrentPos || m_Params.bEnableSimulation)
 	{
 		autoware_msgs::CloudClusterArray localObjects = *msg;
-		if(msg->header.frame_id.compare("velodyne") == 0)
+		if(msg->header.frame_id.compare(target_tracking_frame) == 0)
 		{
-			transformPoseToGlobal(*msg, localObjects);
+			transformPoseToGlobal(msg->header.frame_id, target_tracking_frame, *msg, localObjects);
 		}
 
 		ImportCloudClusters(localObjects, m_OriginalClusters);
@@ -415,13 +470,7 @@ void ContourTracker::callbackGetCloudClusters(const autoware_msgs::CloudClusterA
 		m_dt  = UtilityHNS::UtilityH::GetTimeDiffNow(m_loop_timer);
 		UtilityHNS::UtilityH::GetTickCount(m_loop_timer);
 
-		LogAndSend();
-		VisualizeLocalTracking();
-
-		if(m_Params.bEnableTTC)
-		{
-			CalculateTTC(m_ObstacleTracking.m_DetectedObjects, m_CurrentPos, m_Map);
-		}
+		PostProcess();
 	}
 }
 
@@ -549,7 +598,7 @@ void ContourTracker::ImportDetectedObjects(const autoware_msgs::DetectedObjectAr
 		else if(msg.objects.at(i).indicator_state == 3)
 			obj.indicator_state = PlannerHNS::INDICATOR_NONE;
 
-		if(msg.objects.at(i).convex_hull.polygon.points.size() > 0)
+		if(msg.objects.at(i).convex_hull.polygon.points.size() > 0 && m_Params.bUseDetectionHulls == true)
 		{
 			obj.contour.clear();
 			for(unsigned int ch_i=0; ch_i<msg.objects.at(i).convex_hull.polygon.points.size(); ch_i++)
@@ -619,8 +668,12 @@ bool ContourTracker::FilterBySize(const PlannerHNS::DetectedObject& obj, const P
 	if(!m_Params.bEnableSimulation)
 	{
 		double object_size = hypot(obj.w, obj.l);
-		if(obj.distance_to_center <= m_Params.DetectionRadius && object_size >= m_Params.MinObjSize && object_size <= m_Params.MaxObjSize)
+		//std::cout << "Object Size: " << object_size  << ", distance to center: " << obj.distance_to_center << ", Radius: " << m_Params.DetectionRadius << std::endl;
+		//if(obj.distance_to_center <= m_Params.DetectionRadius && object_size >= m_Params.MinObjSize && object_size <= m_Params.MaxObjSize)
+		if(object_size >= m_Params.MinObjSize && object_size <= m_Params.MaxObjSize)
+		{
 			return true;
+		}
 	}
 
 //	if(m_Params.bEnableSimulation)
@@ -646,6 +699,7 @@ void ContourTracker::callbackGetCurrentPose(const geometry_msgs::PoseStampedCons
   m_CurrentPos.pos = PlannerHNS::GPSPoint(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z,
       tf::getYaw(msg->pose.orientation));
 
+  //std::cout << "Current Pose Frame: " <<  msg->header.frame_id << std::endl;
   bNewCurrentPos = true;
 }
 
@@ -736,7 +790,7 @@ void ContourTracker::VisualizeLocalTracking()
 	pub_TrackedObstaclesRviz.publish(boxes_array);
 }
 
-void ContourTracker::LogAndSend()
+void ContourTracker::Log()
 {
 	timespec log_t;
 	UtilityHNS::UtilityH::GetTickCount(log_t);
@@ -767,21 +821,6 @@ void ContourTracker::LogAndSend()
 //	cout << "t_total : " << m_tracking_time+m_FilteringTime+m_PolyEstimationTime << endl;
 //	cout << endl;
 
-	m_OutPutResults.objects.clear();
-	autoware_msgs::DetectedObject obj;
-	for(unsigned int i = 0 ; i <m_ObstacleTracking.m_DetectedObjects.size(); i++)
-	{
-		PlannerHNS::ROSHelpers::ConvertFromOpenPlannerDetectedObjectToAutowareDetectedObject(m_ObstacleTracking.m_DetectedObjects.at(i), m_Params.bEnableSimulation, obj);
-		m_OutPutResults.objects.push_back(obj);
-	}
-
-	m_OutPutResults.header.frame_id = "map";
-	m_OutPutResults.header.stamp  = ros::Time();
-	
-	pub_AllTrackedObjects.publish(m_OutPutResults);
-
-	if(m_Params.bEnableBenchmark)
-            dumpResultText(m_OutPutResults);
 }
 
 void ContourTracker::GetFrontTrajectories(std::vector<PlannerHNS::Lane*>& lanes, const PlannerHNS::WayPoint& currState, const double& max_distance, std::vector<std::vector<PlannerHNS::WayPoint> >& trajectories)
