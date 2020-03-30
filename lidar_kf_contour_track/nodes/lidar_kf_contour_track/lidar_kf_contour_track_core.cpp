@@ -79,6 +79,7 @@ ContourTracker::ContourTracker()
 	//Mapping Section
 	if(m_MapFilterDistance > 0.25)
 	{
+		sub_bin_map = nh.subscribe("/lanelet_map_bin", 1, &ContourTracker::callbackGetLanelet2, this);
 		sub_lanes = nh.subscribe("/vector_map_info/lane", 1, &ContourTracker::callbackGetVMLanes,  this);
 		sub_points = nh.subscribe("/vector_map_info/point", 1, &ContourTracker::callbackGetVMPoints,  this);
 		sub_dt_lanes = nh.subscribe("/vector_map_info/dtlane", 1, &ContourTracker::callbackGetVMdtLanes,  this);
@@ -947,7 +948,7 @@ void ContourTracker::MainLoop()
 		else if (m_MapType == PlannerHNS::MAP_LANELET_2 && !bMap)
 		{
 			bMap = true;
-			PlannerHNS::Lanelet2MapLoader map_loader(m_Map.origin);
+			PlannerHNS::Lanelet2MapLoader map_loader;
 			map_loader.LoadMap(m_MapPath, m_Map);
 		}
 		else if (m_MapFilterDistance > 0 && m_MapType == PlannerHNS::MAP_AUTOWARE && !bMap)
@@ -998,6 +999,13 @@ void ContourTracker::MainLoop()
 }
 
 //Mapping Section
+
+void ContourTracker::callbackGetLanelet2(const autoware_lanelet2_msgs::MapBin& msg)
+{
+	PlannerHNS::Lanelet2MapLoader map_loader;
+	map_loader.LoadMap(msg, m_Map);
+	bMap = true;
+}
 
 void ContourTracker::callbackGetVMLanes(const vector_map_msgs::LaneArray& msg)
 {

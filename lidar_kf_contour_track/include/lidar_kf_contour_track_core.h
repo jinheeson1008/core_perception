@@ -46,6 +46,7 @@
 #include <autoware_msgs/DetectedObjectArray.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <autoware_lanelet2_msgs/MapBin.h>
 
 
 
@@ -197,9 +198,8 @@ public:
   void MainLoop();
 
 	//Mapping Section
-
 	UtilityHNS::MapRaw m_MapRaw;
-
+  	ros::Subscriber sub_bin_map;
 	ros::Subscriber sub_lanes;
 	ros::Subscriber sub_points;
 	ros::Subscriber sub_dt_lanes;
@@ -215,7 +215,7 @@ public:
 	ros::Subscriber sub_cross_walk;
 	ros::Subscriber sub_nodes;
 
-
+	void callbackGetLanelet2(const autoware_lanelet2_msgs::MapBin& msg);
 	void callbackGetVMLanes(const vector_map_msgs::LaneArray& msg);
 	void callbackGetVMPoints(const vector_map_msgs::PointArray& msg);
 	void callbackGetVMdtLanes(const vector_map_msgs::DTLaneArray& msg);
