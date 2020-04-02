@@ -168,7 +168,7 @@ protected:
 
 
 	// Callback function for subscriber.
-	void callbackGetCloudClusters(const autoware_msgs::CloudClusterArrayConstPtr &msg);
+//	void callbackGetCloudClusters(const autoware_msgs::CloudClusterArrayConstPtr &msg);
 	void callbackGetCurrentPose(const geometry_msgs::PoseStampedConstPtr& msg);
 	void callbackGetDetectedObjects(const autoware_msgs::DetectedObjectArrayConstPtr& msg);
 	void callbackGetVehicleStatus(const geometry_msgs::TwistStampedConstPtr& msg);
@@ -187,9 +187,9 @@ protected:
 	void ReadCommonParams();
 	void Log();
 	void PostProcess();
-	void transformPoseToGlobal(const std::string& src_frame, const std::string& dst_frame,const autoware_msgs::CloudClusterArray& input, autoware_msgs::CloudClusterArray& transformed_input);
-	void transformDetectedObjects(const std::string& src_frame, const std::string& dst_frame, const tf::StampedTransform& trans, const autoware_msgs::DetectedObjectArray& input, autoware_msgs::DetectedObjectArray& transformed_input);
-	void transformPoseToLocal(const std::string& src_frame, const std::string& dst_frame, jsk_recognition_msgs::BoundingBoxArray& jskbboxes_output, autoware_msgs::DetectedObjectArray& detected_objects_output, tf::StampedTransform& trans);
+//	void transformPoseToGlobal(const std::string& src_frame, const std::string& dst_frame,const autoware_msgs::CloudClusterArray& input, autoware_msgs::CloudClusterArray& transformed_input);
+//	void transformDetectedObjects(const std::string& src_frame, const std::string& dst_frame, const tf::StampedTransform& trans, const autoware_msgs::DetectedObjectArray& input, autoware_msgs::DetectedObjectArray& transformed_input);
+//	void transformPoseToLocal(const std::string& src_frame, const std::string& dst_frame, jsk_recognition_msgs::BoundingBoxArray& jskbboxes_output, autoware_msgs::DetectedObjectArray& detected_objects_output, tf::StampedTransform& trans);
 	void dumpResultText(autoware_msgs::DetectedObjectArray& detected_objects);
 
 public:
