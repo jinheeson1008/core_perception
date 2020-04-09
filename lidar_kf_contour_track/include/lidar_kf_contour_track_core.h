@@ -129,6 +129,7 @@ protected:
 	PlannerHNS::RoadNetwork m_Map;
 	bool bMap;
 	double m_MapFilterDistance;
+	std::string m_ExperimentFolderName;
 
 	std::vector<PlannerHNS::Lane*> m_ClosestLanesList;
 

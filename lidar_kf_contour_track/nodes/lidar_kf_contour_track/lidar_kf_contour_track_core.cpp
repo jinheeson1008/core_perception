@@ -115,7 +115,13 @@ ContourTracker::~ContourTracker()
 {
 	if(m_Params.bEnableLogging == true)
 	{
-		UtilityHNS::DataRW::WriteLogData(UtilityHNS::UtilityH::GetHomeDirectory()+UtilityHNS::DataRW::LoggingMainfolderName+UtilityHNS::DataRW::TrackingFolderName, "contour_tracker",
+		std::ostringstream fileName;
+		if(m_ExperimentFolderName.size() == 0)
+			fileName << UtilityHNS::UtilityH::GetHomeDirectory()+UtilityHNS::DataRW::LoggingMainfolderName + UtilityHNS::DataRW::TrackingFolderName;
+		else
+			fileName << UtilityHNS::UtilityH::GetHomeDirectory()+UtilityHNS::DataRW::LoggingMainfolderName + UtilityHNS::DataRW::ExperimentsFolderName + m_ExperimentFolderName + UtilityHNS::DataRW::TrackingFolderName;
+
+		UtilityHNS::DataRW::WriteLogData(fileName.str(), "contour_tracker",
 					"time,dt,num_Tracked_Objects,num_new_objects,num_matched_objects,num_Cluster_Points,num_Contour_Points,t_filtering,t_poly_calc,t_Tracking,t_total",m_LogData);
 	}
 }
@@ -190,9 +196,23 @@ void ContourTracker::ReadCommonParams()
 	}
 
 	_nh.getParam("/op_common_params/mapFileName" , m_MapPath);
-
 	if(!_nh.getParam("/op_common_params/velocitySource", m_VelocitySource))
+	{
 		m_VelocitySource = 1;
+	}
+
+	_nh.getParam("/op_common_params/experimentName" , m_ExperimentFolderName);
+	if(m_ExperimentFolderName.size() > 0)
+	{
+		if(m_ExperimentFolderName.at(m_ExperimentFolderName.size()-1) != '/')
+			m_ExperimentFolderName.push_back('/');
+	}
+
+	UtilityHNS::DataRW::CreateLoggingMainFolder();
+	if(m_ExperimentFolderName.size() > 1)
+	{
+		UtilityHNS::DataRW::CreateExperimentFolder(m_ExperimentFolderName);
+	}
 }
 
 void ContourTracker::dumpResultText(autoware_msgs::DetectedObjectArray& detected_objects)
