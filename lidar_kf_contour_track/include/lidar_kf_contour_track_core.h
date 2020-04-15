@@ -148,6 +148,7 @@ protected:
 	std::string source_data_frame;
 	tf::TransformListener tf_listener;
 	tf::StampedTransform m_local2global;
+	std_msgs::Header m_InputHeader;
 
 	//ROS subscribers
 	ros::NodeHandle nh;

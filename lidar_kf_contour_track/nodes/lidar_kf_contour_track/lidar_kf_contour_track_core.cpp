@@ -388,9 +388,10 @@ void ContourTracker::callbackGetDetectedObjects(const autoware_msgs::DetectedObj
 {
 	if(bNewCurrentPos || m_Params.bEnableSimulation)
 	{
-		autoware_msgs::DetectedObjectArray localObjects = *msg;
+		autoware_msgs::DetectedObjectArray globalObjects;
 		source_data_frame = msg->header.frame_id;
-
+		m_InputHeader = msg->header;
+		//std::cout << "Before Transformation : " << msg->objects.size() << ", " << m_OriginalClusters.size() << std::endl;
 		if(source_data_frame.compare(target_tracking_frame) > 0)
 		{
 //		  try
@@ -405,10 +406,16 @@ void ContourTracker::callbackGetDetectedObjects(const autoware_msgs::DetectedObj
 //			ros::Duration(1.0).sleep();
 //		  }
 			PlannerHNS::ROSHelpers::getTransformFromTF(source_data_frame, target_tracking_frame, tf_listener, m_local2global);
-			PlannerHNS::ROSHelpers::transformDetectedObjects(source_data_frame, target_tracking_frame, m_local2global, *msg, localObjects);
+			globalObjects.header = msg->header;
+			PlannerHNS::ROSHelpers::transformDetectedObjects(source_data_frame, target_tracking_frame, m_local2global, *msg, globalObjects, true);
+		}
+		else
+		{
+			globalObjects = *msg;
 		}
 
-		ImportDetectedObjects(localObjects, m_OriginalClusters);
+		//std::cout << "Before Filtering: " << msg->objects.size() << ", " << m_OriginalClusters.size() << std::endl;
+		ImportDetectedObjects(globalObjects, m_OriginalClusters);
 
 		struct timespec  tracking_timer;
 		UtilityHNS::UtilityH::GetTickCount(tracking_timer);
@@ -428,9 +435,9 @@ void ContourTracker::callbackGetDetectedObjects(const autoware_msgs::DetectedObj
 void ContourTracker::PostProcess()
 {
 	m_OutPutResults.objects.clear();
-	autoware_msgs::DetectedObject obj;
 	for(unsigned int i = 0 ; i <m_ObstacleTracking.m_DetectedObjects.size(); i++)
 	{
+		autoware_msgs::DetectedObject obj;
 		PlannerHNS::ROSHelpers::ConvertFromOpenPlannerDetectedObjectToAutowareDetectedObject(m_ObstacleTracking.m_DetectedObjects.at(i), m_Params.bEnableSimulation, obj);
 		m_OutPutResults.objects.push_back(obj);
 	}
@@ -440,11 +447,9 @@ void ContourTracker::PostProcess()
 	global2local.setData(g2ltrans);
 
 	autoware_msgs::DetectedObjectArray outPutResultsLocal;
-	PlannerHNS::ROSHelpers::transformDetectedObjects(target_tracking_frame, source_data_frame , global2local, m_OutPutResults, outPutResultsLocal);
+	PlannerHNS::ROSHelpers::transformDetectedObjects(target_tracking_frame, source_data_frame , global2local, m_OutPutResults, outPutResultsLocal, true);
 
-	outPutResultsLocal.header.frame_id = source_data_frame;
-	outPutResultsLocal.header.stamp  = ros::Time();
-
+	outPutResultsLocal.header = m_InputHeader;
 	pub_AllTrackedObjects.publish(outPutResultsLocal);
 
 	if(m_Params.bEnableLogging)
@@ -574,9 +579,8 @@ void ContourTracker::ImportDetectedObjects(const autoware_msgs::DetectedObjectAr
 	m_PolyEstimationTime = 0;
 	struct timespec filter_time, poly_est_time;
 
-	PlannerHNS::DetectedObject obj;
+
 	PlannerHNS::GPSPoint avg_center;
-	PolygonGenerator polyGen(m_Params.nQuarters);
 	pcl::PointCloud<pcl::PointXYZ> point_cloud;
 
 	if(bMap)
@@ -586,6 +590,7 @@ void ContourTracker::ImportDetectedObjects(const autoware_msgs::DetectedObjectAr
 	//std::cout << "Filter the detected Obstacles: " << std::endl;
 	for(unsigned int i=0; i < msg.objects.size(); i++)
 	{
+		PlannerHNS::DetectedObject obj;
 		obj.center.pos.x = msg.objects.at(i).pose.position.x;
 		obj.center.pos.y = msg.objects.at(i).pose.position.y;
 		obj.center.pos.z = msg.objects.at(i).pose.position.z;
@@ -619,7 +624,7 @@ void ContourTracker::ImportDetectedObjects(const autoware_msgs::DetectedObjectAr
 		else if(msg.objects.at(i).indicator_state == 3)
 			obj.indicator_state = PlannerHNS::INDICATOR_NONE;
 
-		if(msg.objects.at(i).convex_hull.polygon.points.size() > 0 && m_Params.bUseDetectionHulls == true)
+		if(m_Params.bUseDetectionHulls == true)
 		{
 			obj.contour.clear();
 			for(unsigned int ch_i=0; ch_i<msg.objects.at(i).convex_hull.polygon.points.size(); ch_i++)
@@ -632,7 +637,8 @@ void ContourTracker::ImportDetectedObjects(const autoware_msgs::DetectedObjectAr
 			UtilityHNS::UtilityH::GetTickCount(poly_est_time);
 			point_cloud.clear();
 			pcl::fromROSMsg(msg.objects.at(i).pointcloud, point_cloud);
-			obj.contour = polyGen.EstimateClusterPolygon(point_cloud ,obj.center.pos,avg_center, m_Params.PolygonRes);
+			PolygonGenerator polyGen(m_Params.nQuarters);
+			obj.contour = polyGen.EstimateClusterPolygon(point_cloud ,obj.center.pos,avg_center, -1);
 			m_PolyEstimationTime += UtilityHNS::UtilityH::GetTimeDiffNow(poly_est_time);
 		}
 
@@ -943,7 +949,7 @@ void ContourTracker::MainLoop()
 
 	while (ros::ok())
 	{
-		ReadCommonParams();
+		//ReadCommonParams();
 
 		if(m_MapFilterDistance > 0 && m_MapType == PlannerHNS::MAP_KML_FILE && !bMap)
 		{
