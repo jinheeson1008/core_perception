@@ -392,6 +392,7 @@ void ContourTracker::callbackGetDetectedObjects(const autoware_msgs::DetectedObj
 		source_data_frame = msg->header.frame_id;
 		m_InputHeader = msg->header;
 		//std::cout << "Before Transformation : " << msg->objects.size() << ", " << m_OriginalClusters.size() << std::endl;
+
 		if(source_data_frame.compare(target_tracking_frame) > 0)
 		{
 //		  try
