@@ -21,6 +21,8 @@
 #include "op_planner/KmlMapLoader.h"
 #include "op_planner/Lanelet2MapLoader.h"
 #include "op_planner/VectorMapLoader.h"
+#include <pcl_ros/transforms.h>
+#include <pcl_ros/point_cloud.h>
 
 namespace ContourTrackerNS
 {
@@ -53,8 +55,14 @@ ContourTracker::ContourTracker()
 	m_ObstacleTracking.m_bEnableStepByStep = m_Params.bEnableStepByStep;
 	m_ObstacleTracking.InitSimpleTracker();
 
-	//sub_cloud_clusters = nh.subscribe("/detection/lidar_detector/cloud_clusters", 1, &ContourTracker::callbackGetCloudClusters, this);
-	sub_detected_objects = nh.subscribe("/detection/lidar_detector/objects", 1, &ContourTracker::callbackGetDetectedObjects, this);
+	if(m_Params.bEnableSimulation)
+	{
+		sub_cloud_clusters = nh.subscribe("/simu_cloud_clusters", 1, &ContourTracker::callbackGetCloudClusters, this);
+	}
+	else
+	{
+		sub_detected_objects = nh.subscribe("/detection/lidar_detector/objects", 1, &ContourTracker::callbackGetDetectedObjects, this);
+	}
 	pub_AllTrackedObjects = nh.advertise<autoware_msgs::DetectedObjectArray>("/detection/contour_tracker/objects", 1);
 	sub_current_pose = nh.subscribe("/current_pose",   1, &ContourTracker::callbackGetCurrentPose, 	this);
 
@@ -292,51 +300,33 @@ void ContourTracker::dumpResultText(autoware_msgs::DetectedObjectArray& detected
 //  }
 //}
 
-//void ContourTracker::transformPoseToGlobal(const std::string& src_frame, const std::string& dst_frame, const autoware_msgs::CloudClusterArray& input, autoware_msgs::CloudClusterArray& transformed_input)
-//{
-//	tf::StampedTransform local2global;
-//
-//  try
-//  {
-//    tf_listener.waitForTransform(src_frame, dst_frame, ros::Time(0), ros::Duration(1.0));
-//    // get sensor -> world frame
-//    tf_listener.lookupTransform(dst_frame, src_frame, ros::Time(0), local2global);
-//  }
-//  catch (tf::TransformException& ex)
-//  {
-//    ROS_ERROR("%s", ex.what());
-//    ros::Duration(1.0).sleep();
-//  }
-//
-//  transformed_input.header = input.header;
-//  for (size_t i = 0; i < input.clusters.size(); i++)
-//  {
-//    geometry_msgs::PoseStamped pose_in, pose_out;
-//
-//    pose_in.header = input.header;
-//    pose_in.pose.position.x = input.clusters.at(i).centroid_point.point.x;
-//    pose_in.pose.position.y = input.clusters.at(i).centroid_point.point.y;
-//    pose_in.pose.position.z = input.clusters.at(i).centroid_point.point.z;
-//    pose_in.pose.orientation = tf::createQuaternionMsgFromYaw(input.clusters.at(i).estimated_angle);
-//
-//    tf::Transform input_object_pose;
-//    input_object_pose.setOrigin(tf::Vector3(input.clusters.at(i).centroid_point.point.x, input.clusters.at(i).centroid_point.point.y, input.clusters.at(i).centroid_point.point.z));
-//    geometry_msgs::Quaternion _qt = tf::createQuaternionMsgFromYaw(input.clusters.at(i).estimated_angle);
-//    input_object_pose.setRotation(tf::Quaternion(_qt.x, _qt.y, _qt.z, _qt.w));
-//    tf::poseTFToMsg(local2global * input_object_pose, pose_out.pose);
-//
-//    autoware_msgs::CloudCluster dd;
-//    dd.header = input.header;
-//    dd = input.clusters.at(i);
-//
-//    dd.centroid_point.point.x = pose_out.pose.position.x;
-//    dd.centroid_point.point.y = pose_out.pose.position.y;
-//    dd.centroid_point.point.z = pose_out.pose.position.z;
-//    dd.estimated_angle = tf::getYaw(pose_out.pose.orientation);
-//
-//    transformed_input.clusters.push_back(dd);
-//  }
-//}
+void ContourTracker::transformPoseToGlobal(const std::string& src_frame, const std::string& dst_frame, const tf::StampedTransform& local2global, const autoware_msgs::CloudClusterArray& input, autoware_msgs::CloudClusterArray& transformed_input)
+{
+  for (size_t i = 0; i < input.clusters.size(); i++)
+  {
+    geometry_msgs::PoseStamped pose_in, pose_out;
+    pose_in.pose.position.x = input.clusters.at(i).centroid_point.point.x;
+    pose_in.pose.position.y = input.clusters.at(i).centroid_point.point.y;
+    pose_in.pose.position.z = input.clusters.at(i).centroid_point.point.z;
+    pose_in.pose.orientation = tf::createQuaternionMsgFromYaw(input.clusters.at(i).estimated_angle);
+
+    tf::Transform input_object_pose;
+    input_object_pose.setOrigin(tf::Vector3(input.clusters.at(i).centroid_point.point.x, input.clusters.at(i).centroid_point.point.y, input.clusters.at(i).centroid_point.point.z));
+    geometry_msgs::Quaternion _qt = tf::createQuaternionMsgFromYaw(input.clusters.at(i).estimated_angle);
+    input_object_pose.setRotation(tf::Quaternion(_qt.x, _qt.y, _qt.z, _qt.w));
+    tf::poseTFToMsg(local2global * input_object_pose, pose_out.pose);
+
+    autoware_msgs::CloudCluster dd;
+    dd = input.clusters.at(i);
+
+    dd.centroid_point.point.x = pose_out.pose.position.x;
+    dd.centroid_point.point.y = pose_out.pose.position.y;
+    dd.centroid_point.point.z = pose_out.pose.position.z;
+    dd.estimated_angle = tf::getYaw(pose_out.pose.orientation);
+
+    transformed_input.clusters.push_back(dd);
+  }
+}
 
 //void ContourTracker::transformPoseToLocal(const std::string& src_frame, const std::string& dst_frame, jsk_recognition_msgs::BoundingBoxArray& jskbboxes_output, autoware_msgs::DetectedObjectArray& detected_objects_output, tf::StampedTransform& trans)
 //{
@@ -395,17 +385,6 @@ void ContourTracker::callbackGetDetectedObjects(const autoware_msgs::DetectedObj
 
 		if(source_data_frame.compare(target_tracking_frame) > 0)
 		{
-//		  try
-//		  {
-//			tf_listener.waitForTransform(source_data_frame, target_tracking_frame, ros::Time(0), ros::Duration(1.0));
-//			// get sensor -> world frame
-//			tf_listener.lookupTransform(target_tracking_frame, source_data_frame, ros::Time(0), m_local2global);
-//		  }
-//		  catch (tf::TransformException& ex)
-//		  {
-//			ROS_ERROR("%s", ex.what());
-//			ros::Duration(1.0).sleep();
-//		  }
 			PlannerHNS::ROSHelpers::getTransformFromTF(source_data_frame, target_tracking_frame, tf_listener, m_local2global);
 			globalObjects.header = msg->header;
 			PlannerHNS::ROSHelpers::transformDetectedObjects(source_data_frame, target_tracking_frame, m_local2global, *msg, globalObjects, true);
@@ -448,7 +427,14 @@ void ContourTracker::PostProcess()
 	global2local.setData(g2ltrans);
 
 	autoware_msgs::DetectedObjectArray outPutResultsLocal;
-	PlannerHNS::ROSHelpers::transformDetectedObjects(target_tracking_frame, source_data_frame , global2local, m_OutPutResults, outPutResultsLocal, true);
+	if(!m_Params.bEnableSimulation)
+	{
+		PlannerHNS::ROSHelpers::transformDetectedObjects(target_tracking_frame, source_data_frame , global2local, m_OutPutResults, outPutResultsLocal, true);
+	}
+	else
+	{
+		outPutResultsLocal = m_OutPutResults;
+	}
 
 	outPutResultsLocal.header = m_InputHeader;
 	pub_AllTrackedObjects.publish(outPutResultsLocal);
@@ -474,32 +460,43 @@ void ContourTracker::PostProcess()
 	}
 }
 
-//void ContourTracker::callbackGetCloudClusters(const autoware_msgs::CloudClusterArrayConstPtr &msg)
-//{
-//	if(bNewCurrentPos || m_Params.bEnableSimulation)
-//	{
-//		autoware_msgs::CloudClusterArray localObjects = *msg;
-//		if(msg->header.frame_id.compare(target_tracking_frame) == 0)
-//		{
-//			transformPoseToGlobal(msg->header.frame_id, target_tracking_frame, *msg, localObjects);
-//		}
-//
-//		ImportCloudClusters(localObjects, m_OriginalClusters);
-//
-//		struct timespec  tracking_timer;
-//		UtilityHNS::UtilityH::GetTickCount(tracking_timer);
-//
-//		//std::cout << "Filter the detected Obstacles: " << msg->clusters.size() << ", " << m_OriginalClusters.size() << std::endl;
-//
-//		m_ObstacleTracking.DoOneStep(m_CurrentPos, m_OriginalClusters, m_Params.trackingType);
-//
-//		m_tracking_time = UtilityHNS::UtilityH::GetTimeDiffNow(tracking_timer);
-//		m_dt  = UtilityHNS::UtilityH::GetTimeDiffNow(m_loop_timer);
-//		UtilityHNS::UtilityH::GetTickCount(m_loop_timer);
-//
-//		PostProcess();
-//	}
-//}
+void ContourTracker::callbackGetCloudClusters(const autoware_msgs::CloudClusterArrayConstPtr &msg)
+{
+	if(bNewCurrentPos || m_Params.bEnableSimulation)
+	{
+		autoware_msgs::CloudClusterArray globalObjects;
+		source_data_frame = msg->header.frame_id;
+		m_InputHeader = msg->header;
+
+		//std::cout << source_data_frame  << ", " << target_tracking_frame << std::endl;
+
+		if(source_data_frame.compare(target_tracking_frame) > 0)
+		{
+			PlannerHNS::ROSHelpers::getTransformFromTF(source_data_frame, target_tracking_frame, tf_listener, m_local2global);
+			globalObjects.header = msg->header;
+			transformPoseToGlobal(source_data_frame, target_tracking_frame, m_local2global, *msg, globalObjects);
+		}
+		else
+		{
+			globalObjects = *msg;
+		}
+
+		ImportCloudClusters(globalObjects, m_OriginalClusters);
+
+		struct timespec  tracking_timer;
+		UtilityHNS::UtilityH::GetTickCount(tracking_timer);
+
+		//std::cout << "Filter the detected Clusters: " << msg->clusters.size() << ", " << m_OriginalClusters.size() << std::endl;
+
+		m_ObstacleTracking.DoOneStep(m_CurrentPos, m_OriginalClusters, m_Params.trackingType);
+
+		m_tracking_time = UtilityHNS::UtilityH::GetTimeDiffNow(tracking_timer);
+		m_dt  = UtilityHNS::UtilityH::GetTimeDiffNow(m_loop_timer);
+		UtilityHNS::UtilityH::GetTickCount(m_loop_timer);
+
+		PostProcess();
+	}
+}
 
 void ContourTracker::ImportCloudClusters(const autoware_msgs::CloudClusterArray& msg, std::vector<PlannerHNS::DetectedObject>& originalClusters)
 {
@@ -538,8 +535,8 @@ void ContourTracker::ImportCloudClusters(const autoware_msgs::CloudClusterArray&
 
 		UtilityHNS::UtilityH::GetTickCount(filter_time);
 
-		if(!FilterBySize(obj, m_CurrentPos)) continue;
-		if(!FilterByMap(obj, m_CurrentPos, m_Map)) continue;
+		//if(!FilterBySize(obj, m_CurrentPos)) continue;
+		//if(!FilterByMap(obj, m_CurrentPos, m_Map)) continue;
 
 		m_FilteringTime += UtilityHNS::UtilityH::GetTimeDiffNow(filter_time);
 
