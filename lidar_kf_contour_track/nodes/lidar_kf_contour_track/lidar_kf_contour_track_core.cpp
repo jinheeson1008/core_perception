@@ -953,6 +953,7 @@ void ContourTracker::MainLoop()
 		{
 			PlannerHNS::KmlMapLoader kml_loader;
 			kml_loader.LoadKML(m_MapPath, m_Map);
+			PlannerHNS::MappingHelpers::ConvertVelocityToMeterPerSecond(m_Map);
 			if(m_Map.roadSegments.size() > 0)
 			{
 				bMap = true;
@@ -963,6 +964,7 @@ void ContourTracker::MainLoop()
 		{
 			PlannerHNS::VectorMapLoader vec_loader;
 			vec_loader.LoadFromFile(m_MapPath, m_Map);
+			PlannerHNS::MappingHelpers::ConvertVelocityToMeterPerSecond(m_Map);
 			if(m_Map.roadSegments.size() > 0)
 			{
 				std::cout << " ******* Map Is Loaded successfully from the tracker, Vector Maps folder. " << std::endl;
@@ -974,6 +976,7 @@ void ContourTracker::MainLoop()
 			bMap = true;
 			PlannerHNS::Lanelet2MapLoader map_loader;
 			map_loader.LoadMap(m_MapPath, m_Map);
+			PlannerHNS::MappingHelpers::ConvertVelocityToMeterPerSecond(m_Map);
 		}
 		else if (m_MapFilterDistance > 0 && m_MapType == PlannerHNS::MAP_AUTOWARE && !bMap)
 		{
@@ -982,6 +985,7 @@ void ContourTracker::MainLoop()
 				bMap = true;
 				PlannerHNS::VectorMapLoader vec_loader;
 				vec_loader.LoadFromData(m_MapRaw, m_Map);
+				PlannerHNS::MappingHelpers::ConvertVelocityToMeterPerSecond(m_Map);
 			}
 
 //			std::vector<UtilityHNS::AisanDataConnFileReader::DataConn> conn_data;
@@ -1028,6 +1032,7 @@ void ContourTracker::callbackGetLanelet2(const autoware_lanelet2_msgs::MapBin& m
 {
 	PlannerHNS::Lanelet2MapLoader map_loader;
 	map_loader.LoadMap(msg, m_Map);
+	PlannerHNS::MappingHelpers::ConvertVelocityToMeterPerSecond(m_Map);
 	bMap = true;
 }
 
