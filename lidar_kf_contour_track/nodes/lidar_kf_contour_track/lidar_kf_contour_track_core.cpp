@@ -962,7 +962,7 @@ void ContourTracker::MainLoop()
 		}
 		else if (m_MapFilterDistance > 0 && m_MapType == PlannerHNS::MAP_FOLDER && !bMap)
 		{
-			PlannerHNS::VectorMapLoader vec_loader;
+			PlannerHNS::VectorMapLoader vec_loader(1, m_Params.bEnableLaneChange);
 			vec_loader.LoadFromFile(m_MapPath, m_Map);
 			PlannerHNS::MappingHelpers::ConvertVelocityToMeterPerSecond(m_Map);
 			if(m_Map.roadSegments.size() > 0)
@@ -983,7 +983,7 @@ void ContourTracker::MainLoop()
 			if(m_MapRaw.AreMessagesReceived())
 			{
 				bMap = true;
-				PlannerHNS::VectorMapLoader vec_loader;
+				PlannerHNS::VectorMapLoader vec_loader(1, m_Params.bEnableLaneChange);
 				vec_loader.LoadFromData(m_MapRaw, m_Map);
 				PlannerHNS::MappingHelpers::ConvertVelocityToMeterPerSecond(m_Map);
 			}
