@@ -53,6 +53,13 @@
 namespace ContourTrackerNS
 {
 
+enum MAP_FILTER_TYPE
+{
+	FILTER_DISABLE,
+	FILTER_BOUNDARY,
+	FILTER_CENTERLINES
+	};
+
 class PerceptionParams
 {
 public:
@@ -73,6 +80,8 @@ public:
 	bool bEnableBenchmark;
 	bool bEnableInternalVisualization;
 	bool bUseDetectionHulls;
+	MAP_FILTER_TYPE filterType;
+	double centerlineFilterDistance;
 
 	PerceptionParams()
 	{
@@ -92,6 +101,8 @@ public:
 		bEnableBenchmark = false;
 		bEnableInternalVisualization = false;
 		bUseDetectionHulls = false;
+		filterType = FILTER_DISABLE;
+		centerlineFilterDistance = 1.5;
 	}
 };
 
@@ -128,7 +139,6 @@ protected:
 	std::string m_MapPath;
 	PlannerHNS::RoadNetwork m_Map;
 	bool bMap;
-	double m_MapFilterDistance;
 	std::string m_ExperimentFolderName;
 
 	std::vector<PlannerHNS::Lane*> m_ClosestLanesList;

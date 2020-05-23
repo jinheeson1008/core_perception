@@ -21,7 +21,9 @@
 	<arg name="enableSimulationMode" default="false" />
 	<arg name="enableStepByStepMode" default="false" />	
 	
-	<arg name="vector_map_filter_distance" default="2.0" /> <!-- set 0 to disable vector map filtering  -->
+	<arg name="vector_map_filter_distance" default="1.5" /> <!-- set 0 to disable vector map filtering  -->
+	<arg name="map_filter_type" default="0" /> <!-- 0 for disable filtering, 1 for boundary (wayarea) filtering, 2 for distance to centerline filtering -->
+	
 	<arg name="enableLogging" default="false" />
 	<arg name="enableInternalVisualization" default="true" />
 	<arg name="useDetectionHulls" default="false" />
@@ -46,6 +48,8 @@
 	<param name="enableStepByStepMode" value="$(arg enableStepByStepMode)" />	
 			
 	<param name="vector_map_filter_distance" value="$(arg vector_map_filter_distance)" />
+	<param name="map_filter_type" value="$(arg map_filter_type)" />
+	
 	<param name="enableLogging" value="$(arg enableLogging)" />
 	<param name="enableInternalVisualization" value="$(arg enableInternalVisualization)" />
 	<param name="useDetectionHulls" value="$(arg useDetectionHulls)" />

@@ -29,7 +29,6 @@ namespace ContourTrackerNS
 
 ContourTracker::ContourTracker()
 {
-	m_MapFilterDistance = 0;
 	m_dt = 0;
 	m_tracking_time = 0;
 	m_nOriginalPoints = 0;
@@ -84,8 +83,8 @@ ContourTracker::ContourTracker()
 		pub_TTC_PathRviz = nh.advertise<visualization_msgs::MarkerArray>("ttc_direct_path", 1);
 	}
 
-	//Mapping Section
-	if(m_MapFilterDistance > 0.25)
+	//Mapping Section , load the map if any filtering option is selected
+	if(m_Params.filterType != FILTER_DISABLE)
 	{
 		sub_bin_map = nh.subscribe("/lanelet_map_bin", 1, &ContourTracker::callbackGetLanelet2, this);
 		sub_lanes = nh.subscribe("/vector_map_info/lane", 1, &ContourTracker::callbackGetVMLanes,  this);
@@ -158,37 +157,68 @@ void ContourTracker::ReadNodeParams()
 	int tracking_type = 0;
 	_nh.getParam("/lidar_kf_contour_track/tracking_type" 			, tracking_type);
 	if(tracking_type==0)
+	{
 		m_Params.trackingType = ASSOCIATE_ONLY;
+	}
 	else if (tracking_type == 1)
+	{
 		m_Params.trackingType = SIMPLE_TRACKER;
+	}
 	else if(tracking_type == 2)
+	{
 		m_Params.trackingType = CONTOUR_TRACKER;
+	}
 
 	_nh.getParam("/lidar_kf_contour_track/max_remeber_time" 			, m_ObstacleTracking.m_MaxKeepTime);
 	_nh.getParam("/lidar_kf_contour_track/trust_counter" 				, m_ObstacleTracking.m_nMinTrustAppearances);
-	_nh.getParam("/lidar_kf_contour_track/vector_map_filter_distance" 	, m_MapFilterDistance);
+	_nh.getParam("/lidar_kf_contour_track/vector_map_filter_distance" 	, m_Params.centerlineFilterDistance);
+
+	int filter_type = 0;
+	_nh.getParam("/lidar_kf_contour_track/map_filter_type" 	, filter_type);
+	if(filter_type == 1)
+	{
+		m_Params.filterType = FILTER_BOUNDARY;
+	}
+	else if(filter_type == 2)
+	{
+		m_Params.filterType = FILTER_CENTERLINES;
+	}
+	else
+	{
+		m_Params.filterType = FILTER_DISABLE;
+	}
 }
 
 void ContourTracker::ReadCommonParams()
 {
 	ros::NodeHandle _nh("~");
 	if(!_nh.getParam("/op_common_params/horizonDistance" , m_Params.DetectionRadius))
+	{
 		m_Params.DetectionRadius = 150;
+	}
 
 	m_ObstacleTracking.m_CirclesResolution = m_Params.DetectionRadius*0.05;
 
 	if(!_nh.getParam("/op_common_params/enableLaneChange" , m_Params.bEnableLaneChange))
+	{
 		m_Params.bEnableLaneChange = false;
+	}
 
 	int iSource = 0;
 	_nh.getParam("/op_common_params/mapSource" , iSource);
 
 	if(iSource == 0)
+	{
 		m_MapType = PlannerHNS::MAP_AUTOWARE;
+	}
 	else if (iSource == 1)
+	{
 		m_MapType = PlannerHNS::MAP_FOLDER;
+	}
 	else if(iSource == 2)
+	{
 		m_MapType = PlannerHNS::MAP_KML_FILE;
+	}
 	else if(iSource == 3)
 	{
 		m_MapType = PlannerHNS::MAP_LANELET_2;
@@ -204,6 +234,8 @@ void ContourTracker::ReadCommonParams()
 	}
 
 	_nh.getParam("/op_common_params/mapFileName" , m_MapPath);
+	std::cout << "Read Common Params : " << m_MapPath << ", " << m_MapType << std::endl;
+
 	if(!_nh.getParam("/op_common_params/velocitySource", m_VelocitySource))
 	{
 		m_VelocitySource = 1;
@@ -396,11 +428,10 @@ void ContourTracker::callbackGetDetectedObjects(const autoware_msgs::DetectedObj
 
 		//std::cout << "Before Filtering: " << msg->objects.size() << ", " << m_OriginalClusters.size() << std::endl;
 		ImportDetectedObjects(globalObjects, m_OriginalClusters);
+		//std::cout << "Filter the detected Obstacles: " << msg->objects.size() << ", " << m_OriginalClusters.size() << std::endl;
 
 		struct timespec  tracking_timer;
 		UtilityHNS::UtilityH::GetTickCount(tracking_timer);
-
-		//std::cout << "Filter the detected Obstacles: " << msg->objects.size() << ", " << m_OriginalClusters.size() << std::endl;
 
 		m_ObstacleTracking.DoOneStep(m_CurrentPos, m_OriginalClusters, m_Params.trackingType);
 
@@ -469,7 +500,6 @@ void ContourTracker::callbackGetCloudClusters(const autoware_msgs::CloudClusterA
 		m_InputHeader = msg->header;
 
 		//std::cout << source_data_frame  << ", " << target_tracking_frame << std::endl;
-
 		if(source_data_frame.compare(target_tracking_frame) > 0)
 		{
 			PlannerHNS::ROSHelpers::getTransformFromTF(source_data_frame, target_tracking_frame, tf_listener, m_local2global);
@@ -513,7 +543,9 @@ void ContourTracker::ImportCloudClusters(const autoware_msgs::CloudClusterArray&
 	pcl::PointCloud<pcl::PointXYZ> point_cloud;
 
 	if(bMap)
+	{
 		m_ClosestLanesList = PlannerHNS::MappingHelpers::GetClosestLanesFast(m_CurrentPos, m_Map, m_Params.DetectionRadius);
+	}
 
 	//Filter the detected Obstacles:
 	//std::cout << "Filter the detected Obstacles: " << std::endl;
@@ -582,7 +614,9 @@ void ContourTracker::ImportDetectedObjects(const autoware_msgs::DetectedObjectAr
 	pcl::PointCloud<pcl::PointXYZ> point_cloud;
 
 	if(bMap)
+	{
 		m_ClosestLanesList = PlannerHNS::MappingHelpers::GetClosestLanesFast(m_CurrentPos, m_Map, m_Params.DetectionRadius);
+	}
 
 	//Filter the detected Obstacles:
 	//std::cout << "Filter the detected Obstacles: " << std::endl;
@@ -649,56 +683,57 @@ void ContourTracker::ImportDetectedObjects(const autoware_msgs::DetectedObjectAr
 
 bool ContourTracker::FilterByMap(const PlannerHNS::DetectedObject& obj, const PlannerHNS::WayPoint& currState, PlannerHNS::RoadNetwork& map)
 {
-	if(bMap)
+	if(!bMap) return true;
+
+	if(m_Params.filterType == FILTER_BOUNDARY)
 	{
 		for(unsigned int ib = 0; ib < map.boundaries.size(); ib++)
 		{
 			double d_to_center = hypot(map.boundaries.at(ib).center.pos.y - currState.pos.y, map.boundaries.at(ib).center.pos.x - currState.pos.x);
-			std::cout << "boundary detection ! " << d_to_center <<std::endl;
 			if(d_to_center < m_Params.DetectionRadius*2.0)
 			{
-
 				if(PlannerHNS::PlanningHelpers::PointInsidePolygon(map.boundaries.at(ib).points, obj.center) == 1)
+				{
 					return true;
+				}
 			}
 		}
-		return false;
-//		for(unsigned int i =0 ; i < m_ClosestLanesList.size(); i++)
-//		{
-//
-//			PlannerHNS::RelativeInfo info;
-//			PlannerHNS::PlanningHelpers::GetRelativeInfoLimited(m_ClosestLanesList.at(i)->points, obj.center, info);
-//			PlannerHNS::WayPoint wp = m_ClosestLanesList.at(i)->points.at(info.iFront);
-//
-//			double direct_d = hypot(wp.pos.y - obj.center.pos.y, wp.pos.x - obj.center.pos.x);
-//
-//		//	std::cout << "- Distance To Car: " << obj.distance_to_center << ", PerpD: " << info.perp_distance << ", DirectD: " << direct_d << ", bAfter: " << info.bAfter << ", bBefore: " << info.bBefore << std::endl;
-//
-//			if((info.bAfter || info.bBefore) && direct_d > m_MapFilterDistance*2.0)
-//				continue;
-//
-//			if(fabs(info.perp_distance) <= m_MapFilterDistance)
-//			{
-//				return true;
-//			}
-//		}
+	}
+	else if(m_Params.filterType == FILTER_CENTERLINES)
+	{
+		for(unsigned int i =0 ; i < m_ClosestLanesList.size(); i++)
+		{
+			PlannerHNS::RelativeInfo info;
+			PlannerHNS::PlanningHelpers::GetRelativeInfoLimited(m_ClosestLanesList.at(i)->points, obj.center, info);
+			PlannerHNS::WayPoint wp = m_ClosestLanesList.at(i)->points.at(info.iFront);
+
+			double direct_d = hypot(wp.pos.y - obj.center.pos.y, wp.pos.x - obj.center.pos.x);
+
+		//	std::cout << "- Distance To Car: " << obj.distance_to_center << ", PerpD: " << info.perp_distance << ", DirectD: " << direct_d << ", bAfter: " << info.bAfter << ", bBefore: " << info.bBefore << std::endl;
+
+			if((info.bAfter || info.bBefore) && direct_d > m_Params.centerlineFilterDistance*2.0)
+			{
+				continue;
+			}
+
+			if(fabs(info.perp_distance) <= m_Params.centerlineFilterDistance)
+			{
+				return true;
+			}
+		}
 	}
 
-	return true;
+	return false;
 }
 
 bool ContourTracker::FilterBySize(const PlannerHNS::DetectedObject& obj, const PlannerHNS::WayPoint& currState)
 {
-
-	if(!m_Params.bEnableSimulation)
+	double object_size = hypot(obj.w, obj.l);
+	//std::cout << "Object Size: " << object_size  << ", distance to center: " << obj.distance_to_center << ", Radius: " << m_Params.DetectionRadius << std::endl;
+	//if(obj.distance_to_center <= m_Params.DetectionRadius && object_size >= m_Params.MinObjSize && object_size <= m_Params.MaxObjSize)
+	if(object_size >= m_Params.MinObjSize && object_size <= m_Params.MaxObjSize)
 	{
-		double object_size = hypot(obj.w, obj.l);
-		//std::cout << "Object Size: " << object_size  << ", distance to center: " << obj.distance_to_center << ", Radius: " << m_Params.DetectionRadius << std::endl;
-		//if(obj.distance_to_center <= m_Params.DetectionRadius && object_size >= m_Params.MinObjSize && object_size <= m_Params.MaxObjSize)
-		if(object_size >= m_Params.MinObjSize && object_size <= m_Params.MaxObjSize)
-		{
-			return true;
-		}
+		return true;
 	}
 
 //	if(m_Params.bEnableSimulation)
@@ -721,10 +756,7 @@ bool ContourTracker::FilterBySize(const PlannerHNS::DetectedObject& obj, const P
 
 void ContourTracker::callbackGetCurrentPose(const geometry_msgs::PoseStampedConstPtr &msg)
 {
-  m_CurrentPos.pos = PlannerHNS::GPSPoint(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z,
-      tf::getYaw(msg->pose.orientation));
-
-  //std::cout << "Current Pose Frame: " <<  msg->header.frame_id << std::endl;
+  m_CurrentPos.pos = PlannerHNS::GPSPoint(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z, tf::getYaw(msg->pose.orientation));
   bNewCurrentPos = true;
 }
 
@@ -733,7 +765,9 @@ void ContourTracker::callbackGetVehicleStatus(const geometry_msgs::TwistStampedC
 	m_VehicleStatus.speed = msg->twist.linear.x;
 	m_CurrentPos.v = m_VehicleStatus.speed;
 	if(fabs(msg->twist.linear.x) > 0.25)
+	{
 		m_VehicleStatus.steer = atan(2.7 * msg->twist.angular.z/msg->twist.linear.x);
+	}
 	UtilityHNS::UtilityH::GetTickCount(m_VehicleStatus.tStamp);
 }
 
@@ -748,7 +782,9 @@ void ContourTracker::callbackGetRobotOdom(const nav_msgs::OdometryConstPtr& msg)
 {
 	m_VehicleStatus.speed = msg->twist.twist.linear.x;
 	if(msg->twist.twist.linear.x != 0)
+	{
 		m_VehicleStatus.steer += atan(2.7 * msg->twist.twist.angular.z/msg->twist.twist.linear.x);
+	}
 	UtilityHNS::UtilityH::GetTickCount(m_VehicleStatus.tStamp);
 }
 
@@ -893,7 +929,7 @@ void ContourTracker::CalculateTTC(const std::vector<PlannerHNS::DetectedObject>&
 			PlannerHNS::RelativeInfo obj_info, car_info;
 			PlannerHNS::PlanningHelpers::GetRelativeInfoLimited(paths.at(i), objs.at(i_obj).center , obj_info);
 
-			if(!obj_info.bAfter && !obj_info.bBefore && fabs(obj_info.perp_distance) < m_MapFilterDistance)
+			if(!obj_info.bAfter && !obj_info.bBefore && fabs(obj_info.perp_distance) < m_Params.centerlineFilterDistance)
 			{
 				PlannerHNS::PlanningHelpers::GetRelativeInfoLimited(paths.at(i), currState , car_info);
 				double longitudinalDist = PlannerHNS::PlanningHelpers::GetExactDistanceOnTrajectory(paths.at(i), car_info, obj_info);
@@ -947,9 +983,9 @@ void ContourTracker::MainLoop()
 
 	while (ros::ok())
 	{
-		//ReadCommonParams();
+		ReadCommonParams();
 
-		if(m_MapFilterDistance > 0 && m_MapType == PlannerHNS::MAP_KML_FILE && !bMap)
+		if(m_Params.filterType != FILTER_DISABLE && m_MapType == PlannerHNS::MAP_KML_FILE && !bMap)
 		{
 			PlannerHNS::KmlMapLoader kml_loader;
 			kml_loader.LoadKML(m_MapPath, m_Map);
@@ -960,7 +996,7 @@ void ContourTracker::MainLoop()
 				std::cout << " ******* Map Is Loaded successfully from the tracker, KML File." << std::endl;
 			}
 		}
-		else if (m_MapFilterDistance > 0 && m_MapType == PlannerHNS::MAP_FOLDER && !bMap)
+		else if (m_Params.filterType != FILTER_DISABLE && m_MapType == PlannerHNS::MAP_FOLDER && !bMap)
 		{
 			PlannerHNS::VectorMapLoader vec_loader(1, m_Params.bEnableLaneChange);
 			vec_loader.LoadFromFile(m_MapPath, m_Map);
@@ -971,14 +1007,14 @@ void ContourTracker::MainLoop()
 				bMap = true;
 			}
 		}
-		else if (m_MapType == PlannerHNS::MAP_LANELET_2 && !bMap)
+		else if (m_Params.filterType != FILTER_DISABLE && m_MapType == PlannerHNS::MAP_LANELET_2 && !bMap)
 		{
 			bMap = true;
 			PlannerHNS::Lanelet2MapLoader map_loader;
 			map_loader.LoadMap(m_MapPath, m_Map);
 			PlannerHNS::MappingHelpers::ConvertVelocityToMeterPerSecond(m_Map);
 		}
-		else if (m_MapFilterDistance > 0 && m_MapType == PlannerHNS::MAP_AUTOWARE && !bMap)
+		else if (m_Params.filterType != FILTER_DISABLE && m_MapType == PlannerHNS::MAP_AUTOWARE && !bMap)
 		{
 			if(m_MapRaw.AreMessagesReceived())
 			{
