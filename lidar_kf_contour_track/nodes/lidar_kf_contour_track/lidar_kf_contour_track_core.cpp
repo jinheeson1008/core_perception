@@ -234,7 +234,7 @@ void ContourTracker::ReadCommonParams()
 	}
 
 	_nh.getParam("/op_common_params/mapFileName" , m_MapPath);
-	std::cout << "Read Common Params : " << m_MapPath << ", " << m_MapType << std::endl;
+	//std::cout << "Read Common Params : " << m_MapPath << ", " << m_MapType << std::endl;
 
 	if(!_nh.getParam("/op_common_params/velocitySource", m_VelocitySource))
 	{
