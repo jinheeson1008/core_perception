@@ -27,6 +27,7 @@
 #include <autoware_msgs/AdjustXY.h>
 #include <autoware_msgs/Signals.h>
 #include <sensor_msgs/CameraInfo.h>
+#include <std_msgs/String.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <op_planner/RoadNetwork.h>
 
@@ -50,6 +51,7 @@ private:
 
   ros::Subscriber camera_info_subscriber_;
   ros::Subscriber adjustXY_subscriber_;
+  ros::Subscriber sub_map_file_name;
 
   ros::Publisher roi_sign_pub_;
 
@@ -75,6 +77,7 @@ private:
   tf::StampedTransform camera_to_map_tf_;
   tf::StampedTransform map_to_camera_tf_;
 
+  void kmlMapFileNameCallback(const std_msgs::String& file_name);
   void adjustXYCallback(const autoware_msgs::AdjustXY& config_msg);
   void cameraInfoCallback(const sensor_msgs::CameraInfo& camInfoMsg);
 
@@ -86,6 +89,7 @@ private:
   void CollectAndPublishSigns();
   double GetSignalAngleInCameraSystem(double hang, double vang);
   bool isRange(const double lower, const double upper, const double val);
+  void LoadMap(const std::string& file_name);
 
 };
 }  // namespace trafficlight_recognizer

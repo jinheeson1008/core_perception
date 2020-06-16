@@ -41,8 +41,12 @@ namespace trafficlight_recognizer
 
 		camera_info_subscriber_ = nh.subscribe("camera_info", 100, &FeatProjKML::cameraInfoCallback, this);
 		adjustXY_subscriber_ = nh.subscribe("config/adjust_xy", 100, &FeatProjKML::adjustXYCallback, this);
-
 		roi_sign_pub_ = nh.advertise<autoware_msgs::Signals>("roi_signal", 100);
+
+		if(m_MapType == PlannerHNS::MAP_KML_FILE_NAME)
+		{
+			sub_map_file_name = nh.subscribe("/assure_kml_map_file_name", 1, &FeatProjKML::kmlMapFileNameCallback, this);
+		}
 	}
 
 	void FeatProjKML::ReadCommonParams()
@@ -50,14 +54,17 @@ namespace trafficlight_recognizer
 		ros::NodeHandle _nh("~");
 		int iSource = 0;
 		_nh.getParam("/op_common_params/mapSource" , iSource);
+		_nh.getParam("/op_common_params/mapFileName" , m_MapPath);
 
 		if(iSource == 0)
 		{
 			m_MapType = PlannerHNS::MAP_AUTOWARE;
+			std::cout << "Map source should be set to KML in op_common_params, otherwise use VectorMap or Lanelet2 options: " << m_MapPath << ", " << m_MapType << std::endl;
 		}
 		else if (iSource == 1)
 		{
 			m_MapType = PlannerHNS::MAP_FOLDER;
+			std::cout << "Map source should be set to KML in op_common_params, otherwise use VectorMap or Lanelet2 options: " << m_MapPath << ", " << m_MapType << std::endl;
 		}
 		else if(iSource == 2)
 		{
@@ -66,10 +73,18 @@ namespace trafficlight_recognizer
 		else if(iSource == 3)
 		{
 			m_MapType = PlannerHNS::MAP_LANELET_2;
+			std::cout << "Map source should be set to KML in op_common_params, otherwise use VectorMap or Lanelet2 options: " << m_MapPath << ", " << m_MapType << std::endl;
 		}
-
-		_nh.getParam("/op_common_params/mapFileName" , m_MapPath);
+		else if(iSource == 4)
+		{
+			m_MapType = PlannerHNS::MAP_KML_FILE_NAME;
+		}
 		//std::cout << "Read op_common Params From feat_proj_kml, start reading map from: " << m_MapPath << ", " << m_MapType << std::endl;
+	}
+
+	void FeatProjKML::kmlMapFileNameCallback(const std_msgs::String& file_name)
+	{
+		LoadMap(file_name.data);
 	}
 
 	// @brief get transformation between given frames
@@ -288,6 +303,22 @@ namespace trafficlight_recognizer
 	  return false;
 	}
 
+	void FeatProjKML::LoadMap(const std::string& file_name)
+	{
+		PlannerHNS::KmlMapLoader kml_loader;
+		kml_loader.LoadKML(file_name, m_Map);
+		PlannerHNS::MappingHelpers::ConvertVelocityToMeterPerSecond(m_Map);
+		if(m_Map.trafficLights.size() > 0)
+		{
+			bMap = true;
+			std::cout << " ******* KML Map is loaded successfully from feat_proj, KML File. Contains traffic lights: " << m_Map.trafficLights.size() << std::endl;
+		}
+		else
+		{
+			std::cout << " ******* KML Map loaded in feat_proj does not Contains traffic lights: " << m_Map.trafficLights.size() << std::endl;
+		}
+	}
+
 	void FeatProjKML::MainLoop()
 	{
 		ros::Rate loop_rate(50);
@@ -301,22 +332,7 @@ namespace trafficlight_recognizer
 				ReadCommonParams();
 				if(m_MapType == PlannerHNS::MAP_KML_FILE)
 				{
-					PlannerHNS::KmlMapLoader kml_loader;
-					kml_loader.LoadKML(m_MapPath, m_Map);
-					PlannerHNS::MappingHelpers::ConvertVelocityToMeterPerSecond(m_Map);
-					if(m_Map.trafficLights.size() > 0)
-					{
-						bMap = true;
-						std::cout << " ******* KML Map is loaded successfully from feat_proj, KML File. Contains traffic lights: " << m_Map.trafficLights.size() << std::endl;
-					}
-					else
-					{
-						std::cout << " ******* KML Map loaded in feat_proj does not Contains traffic lights: " << m_Map.trafficLights.size() << std::endl;
-					}
-				}
-				else
-				{
-					std::cout << "Map source should be set to KML in op_common_params, otherwise use VectorMap or Lanelet2 options: " << m_MapPath << ", " << m_MapType << std::endl;
+					LoadMap(m_MapPath);
 				}
 			}
 

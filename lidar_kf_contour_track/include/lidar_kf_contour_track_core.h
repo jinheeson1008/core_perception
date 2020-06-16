@@ -37,6 +37,7 @@
 #include "SimpleTracker.h"
 #include "PolygonGenerator.h"
 
+#include <std_msgs/String.h>
 #include <tf/transform_listener.h>
 #include <autoware_can_msgs/CANInfo.h>
 #include <nav_msgs/Odometry.h>
@@ -177,6 +178,7 @@ protected:
 	ros::Subscriber sub_current_velocity;
 	ros::Subscriber sub_robot_odom;
 	ros::Subscriber sub_can_info;
+	ros::Subscriber sub_map_file_name;
 
 
 	// Callback function for subscriber.
@@ -240,6 +242,8 @@ public:
 	void callbackGetVMWayAreas(const vector_map_msgs::WayAreaArray& msg);
 	void callbackGetVMCrossWalks(const vector_map_msgs::CrossWalkArray& msg);
 	void callbackGetVMNodes(const vector_map_msgs::NodeArray& msg);
+	void kmlMapFileNameCallback(const std_msgs::String& file_name);
+	void LoadKmlMap(const std::string& file_name);
 };
 
 }

@@ -74,7 +74,7 @@ ContourTracker::ContourTracker()
 
 	if(m_Params.bEnableInternalVisualization)
 	{
-		pub_DetectedPolygonsRviz = nh.advertise<visualization_msgs::MarkerArray>("detected_polygons", 1);
+		pub_DetectedPolygonsRviz = nh.advertise<visualization_msgs::MarkerArray>("/detection/contour_tracker/detected_polygons", 1);
 		pub_TrackedObstaclesRviz = nh.advertise<jsk_recognition_msgs::BoundingBoxArray>("op_planner_tracked_boxes", 1);
 	}
 
@@ -86,6 +86,11 @@ ContourTracker::ContourTracker()
 	//Mapping Section , load the map if any filtering option is selected
 	if(m_Params.filterType != FILTER_DISABLE)
 	{
+		if(m_MapType == PlannerHNS::MAP_KML_FILE_NAME)
+		{
+			sub_map_file_name = nh.subscribe("/assure_kml_map_file_name", 1, &ContourTracker::kmlMapFileNameCallback, this);
+		}
+
 		sub_bin_map = nh.subscribe("/lanelet_map_bin", 1, &ContourTracker::callbackGetLanelet2, this);
 		sub_lanes = nh.subscribe("/vector_map_info/lane", 1, &ContourTracker::callbackGetVMLanes,  this);
 		sub_points = nh.subscribe("/vector_map_info/point", 1, &ContourTracker::callbackGetVMPoints,  this);
@@ -232,6 +237,11 @@ void ContourTracker::ReadCommonParams()
 			m_Map.origin.pos.alt = atof(lat_lon_alt.at(2).c_str());
 		}
 	}
+	else if(iSource == 4)
+	{
+		m_MapType = PlannerHNS::MAP_KML_FILE_NAME;
+	}
+
 
 	_nh.getParam("/op_common_params/mapFileName" , m_MapPath);
 	//std::cout << "Read Common Params : " << m_MapPath << ", " << m_MapType << std::endl;
@@ -1063,6 +1073,23 @@ void ContourTracker::MainLoop()
 }
 
 //Mapping Section
+
+void ContourTracker::LoadKmlMap(const std::string& file_name)
+{
+	PlannerHNS::KmlMapLoader kml_loader;
+	kml_loader.LoadKML(file_name, m_Map);
+	PlannerHNS::MappingHelpers::ConvertVelocityToMeterPerSecond(m_Map);
+	if(m_Map.roadSegments.size() > 0)
+	{
+		bMap = true;
+		std::cout << " ******* Map Is Loaded successfully from the tracker, KML File." << std::endl;
+	}
+}
+
+void ContourTracker::kmlMapFileNameCallback(const std_msgs::String& file_name)
+{
+	LoadKmlMap(file_name.data);
+}
 
 void ContourTracker::callbackGetLanelet2(const autoware_lanelet2_msgs::MapBin& msg)
 {
