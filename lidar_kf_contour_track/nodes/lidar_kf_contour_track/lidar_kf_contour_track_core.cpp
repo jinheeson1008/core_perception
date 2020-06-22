@@ -39,6 +39,7 @@ ContourTracker::ContourTracker()
 	m_PolyEstimationTime = 0;
 	m_MapType = PlannerHNS::MAP_KML_FILE;
 	bMap = false;
+	bCommonParams = false;
 	bNewCurrentPos = false;
 	//pointcloud_frame = "velodyne";
 	target_tracking_frame = "map";
@@ -199,7 +200,12 @@ void ContourTracker::ReadCommonParams()
 	ros::NodeHandle _nh("~");
 	if(!_nh.getParam("/op_common_params/horizonDistance" , m_Params.DetectionRadius))
 	{
+		bCommonParams = false;
 		m_Params.DetectionRadius = 150;
+	}
+	else
+	{
+		bCommonParams = true;
 	}
 
 	m_ObstacleTracking.m_CirclesResolution = m_Params.DetectionRadius*0.05;
@@ -252,16 +258,24 @@ void ContourTracker::ReadCommonParams()
 	}
 
 	_nh.getParam("/op_common_params/experimentName" , m_ExperimentFolderName);
-	if(m_ExperimentFolderName.size() > 0)
-	{
-		if(m_ExperimentFolderName.at(m_ExperimentFolderName.size()-1) != '/')
-			m_ExperimentFolderName.push_back('/');
-	}
 
-	UtilityHNS::DataRW::CreateLoggingMainFolder();
-	if(m_ExperimentFolderName.size() > 1)
+	try
 	{
-		UtilityHNS::DataRW::CreateExperimentFolder(m_ExperimentFolderName);
+		if(m_ExperimentFolderName.size() > 0)
+		{
+			if(m_ExperimentFolderName.at(m_ExperimentFolderName.size()-1) != '/')
+				m_ExperimentFolderName.push_back('/');
+		}
+
+		UtilityHNS::DataRW::CreateLoggingMainFolder();
+		if(m_ExperimentFolderName.size() > 1)
+		{
+			UtilityHNS::DataRW::CreateExperimentFolder(m_ExperimentFolderName);
+		}
+	}
+	catch(exception& e)
+	{
+		std::cout << "Can't Create Logging folder with experiment name: " << m_ExperimentFolderName << ", Reason: " << e.what() << std::endl;
 	}
 }
 
@@ -990,93 +1004,70 @@ void ContourTracker::CalculateTTC(const std::vector<PlannerHNS::DetectedObject>&
 void ContourTracker::MainLoop()
 {
 	ros::Rate loop_rate(50);
-
 	while (ros::ok())
 	{
-		ReadCommonParams();
-
-		if(m_Params.filterType != FILTER_DISABLE && m_MapType == PlannerHNS::MAP_KML_FILE && !bMap)
+		if(!bCommonParams)
 		{
-			PlannerHNS::KmlMapLoader kml_loader;
-			kml_loader.LoadKML(m_MapPath, m_Map);
-			PlannerHNS::MappingHelpers::ConvertVelocityToMeterPerSecond(m_Map);
-			if(m_Map.roadSegments.size() > 0)
-			{
-				bMap = true;
-				std::cout << " ******* Map Is Loaded successfully from the tracker, KML File." << std::endl;
-			}
+			ReadCommonParams();
 		}
-		else if (m_Params.filterType != FILTER_DISABLE && m_MapType == PlannerHNS::MAP_FOLDER && !bMap)
-		{
-			PlannerHNS::VectorMapLoader vec_loader(1, m_Params.bEnableLaneChange);
-			vec_loader.LoadFromFile(m_MapPath, m_Map);
-			PlannerHNS::MappingHelpers::ConvertVelocityToMeterPerSecond(m_Map);
-			if(m_Map.roadSegments.size() > 0)
-			{
-				std::cout << " ******* Map Is Loaded successfully from the tracker, Vector Maps folder. " << std::endl;
-				bMap = true;
-			}
-		}
-		else if (m_Params.filterType != FILTER_DISABLE && m_MapType == PlannerHNS::MAP_LANELET_2 && !bMap)
-		{
-			bMap = true;
-			PlannerHNS::Lanelet2MapLoader map_loader;
-			map_loader.LoadMap(m_MapPath, m_Map);
-			PlannerHNS::MappingHelpers::ConvertVelocityToMeterPerSecond(m_Map);
-		}
-		else if (m_Params.filterType != FILTER_DISABLE && m_MapType == PlannerHNS::MAP_AUTOWARE && !bMap)
-		{
-			if(m_MapRaw.AreMessagesReceived())
-			{
-				bMap = true;
-				PlannerHNS::VectorMapLoader vec_loader(1, m_Params.bEnableLaneChange);
-				vec_loader.LoadFromData(m_MapRaw, m_Map);
-				PlannerHNS::MappingHelpers::ConvertVelocityToMeterPerSecond(m_Map);
-			}
-
-//			std::vector<UtilityHNS::AisanDataConnFileReader::DataConn> conn_data;
-//			if(m_MapRaw.GetVersion()==2)
-//			{
-//				PlannerHNS::MappingHelpers::ConstructRoadNetworkFromROSMessageV2(m_MapRaw.pLanes->m_data_list, m_MapRaw.pPoints->m_data_list,
-//						m_MapRaw.pCenterLines->m_data_list, m_MapRaw.pIntersections->m_data_list,m_MapRaw.pAreas->m_data_list,
-//						m_MapRaw.pLines->m_data_list, m_MapRaw.pStopLines->m_data_list,	m_MapRaw.pSignals->m_data_list,
-//						m_MapRaw.pVectors->m_data_list, m_MapRaw.pCurbs->m_data_list, m_MapRaw.pRoadedges->m_data_list, m_MapRaw.pWayAreas->m_data_list,
-//						m_MapRaw.pCrossWalks->m_data_list, m_MapRaw.pNodes->m_data_list, conn_data,
-//						m_MapRaw.pLanes, m_MapRaw.pPoints, m_MapRaw.pNodes, m_MapRaw.pLines, m_MapRaw.pWhitelines, PlannerHNS::GPSPoint(), m_Map, true, m_Params.bEnableLaneChange, false);
-//
-//				if(m_Map.roadSegments.size() > 0)
-//				{
-//					bMap = true;
-//					std::cout << " ******* Map Is Loaded successfully from the tracker, Autoware Map V2." << std::endl;
-//				}
-//			}
-//			else if(m_MapRaw.GetVersion()==1)
-//			{
-//				PlannerHNS::MappingHelpers::ConstructRoadNetworkFromROSMessage(m_MapRaw.pLanes->m_data_list, m_MapRaw.pPoints->m_data_list,
-//						m_MapRaw.pCenterLines->m_data_list, m_MapRaw.pIntersections->m_data_list,m_MapRaw.pAreas->m_data_list,
-//						m_MapRaw.pLines->m_data_list, m_MapRaw.pStopLines->m_data_list,	m_MapRaw.pSignals->m_data_list,
-//						m_MapRaw.pVectors->m_data_list, m_MapRaw.pCurbs->m_data_list, m_MapRaw.pRoadedges->m_data_list, m_MapRaw.pWayAreas->m_data_list,
-//						m_MapRaw.pCrossWalks->m_data_list, m_MapRaw.pNodes->m_data_list, conn_data, nullptr, nullptr, PlannerHNS::GPSPoint(), m_Map, true, m_Params.bEnableLaneChange, false);
-//
-//				if(m_Map.roadSegments.size() > 0)
-//				{
-//					bMap = true;
-//					std::cout << " ******* Map Is Loaded successfully from the tracker, Autoware Map V1." << std::endl;
-//				}
-//			}
-		}
-
+		LoadMap();
+		/**
+		 * Main loop happens when new detected object topic is received,
+		 * so the frequency of this node depends on the object detection module frequency.
+		 */
 		ros::spinOnce();
 		loop_rate.sleep();
 	}
-
 }
 
 //Mapping Section
+void ContourTracker::LoadMap()
+{
+	if(m_Params.filterType != FILTER_DISABLE && m_MapType == PlannerHNS::MAP_KML_FILE && !bMap)
+	{
+		LoadKmlMap(m_MapPath);
+	}
+	else if (m_Params.filterType != FILTER_DISABLE && m_MapType == PlannerHNS::MAP_FOLDER && !bMap)
+	{
+		PlannerHNS::VectorMapLoader vec_loader(1, m_Params.bEnableLaneChange);
+		m_Map.Clear();
+		vec_loader.LoadFromFile(m_MapPath, m_Map);
+		PlannerHNS::MappingHelpers::ConvertVelocityToMeterPerSecond(m_Map);
+		if(m_Map.roadSegments.size() > 0)
+		{
+			std::cout << " ******* Map Is Loaded successfully from the tracker, Vector Maps folder. " << std::endl;
+			bMap = true;
+		}
+	}
+	else if (m_Params.filterType != FILTER_DISABLE && m_MapType == PlannerHNS::MAP_LANELET_2 && !bMap)
+	{
+		bMap = true;
+		PlannerHNS::Lanelet2MapLoader map_loader;
+		m_Map.Clear();
+		map_loader.LoadMap(m_MapPath, m_Map);
+		PlannerHNS::MappingHelpers::ConvertVelocityToMeterPerSecond(m_Map);
+	}
+	else if (m_Params.filterType != FILTER_DISABLE && m_MapType == PlannerHNS::MAP_AUTOWARE && !bMap)
+	{
+		if(m_MapRaw.AreMessagesReceived())
+		{
+			bMap = true;
+			PlannerHNS::VectorMapLoader vec_loader(1, m_Params.bEnableLaneChange);
+			m_Map.Clear();
+			vec_loader.LoadFromData(m_MapRaw, m_Map);
+			PlannerHNS::MappingHelpers::ConvertVelocityToMeterPerSecond(m_Map);
+		}
+	}
+	else if(m_Params.filterType == FILTER_DISABLE)
+	{
+		bMap = true;
+	}
+}
 
 void ContourTracker::LoadKmlMap(const std::string& file_name)
 {
 	PlannerHNS::KmlMapLoader kml_loader;
+	m_Map.Clear();
 	kml_loader.LoadKML(file_name, m_Map);
 	PlannerHNS::MappingHelpers::ConvertVelocityToMeterPerSecond(m_Map);
 	if(m_Map.roadSegments.size() > 0)

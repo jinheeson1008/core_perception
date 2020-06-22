@@ -140,6 +140,7 @@ protected:
 	std::string m_MapPath;
 	PlannerHNS::RoadNetwork m_Map;
 	bool bMap;
+	bool bCommonParams;
 	std::string m_ExperimentFolderName;
 
 	std::vector<PlannerHNS::Lane*> m_ClosestLanesList;
@@ -244,6 +245,7 @@ public:
 	void callbackGetVMNodes(const vector_map_msgs::NodeArray& msg);
 	void kmlMapFileNameCallback(const std_msgs::String& file_name);
 	void LoadKmlMap(const std::string& file_name);
+	void LoadMap();
 };
 
 }
