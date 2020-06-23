@@ -438,6 +438,7 @@ void ContourTracker::callbackGetDetectedObjects(const autoware_msgs::DetectedObj
 		source_data_frame = msg->header.frame_id;
 		m_InputHeader = msg->header;
 		//std::cout << "Before Transformation : " << msg->objects.size() << ", " << m_OriginalClusters.size() << std::endl;
+		//std::cout << "Source Frame: " << source_data_frame << ", Target Frame: " << target_tracking_frame << std::endl;
 
 		if(source_data_frame.compare(target_tracking_frame) > 0)
 		{
@@ -450,7 +451,7 @@ void ContourTracker::callbackGetDetectedObjects(const autoware_msgs::DetectedObj
 			globalObjects = *msg;
 		}
 
-		//std::cout << "Before Filtering: " << msg->objects.size() << ", " << m_OriginalClusters.size() << std::endl;
+		//std::cout << "Before Filtering: " << msg->objects.size() << ", " << globalObjects.objects.size() << std::endl;
 		ImportDetectedObjects(globalObjects, m_OriginalClusters);
 		//std::cout << "Filter the detected Obstacles: " << msg->objects.size() << ", " << m_OriginalClusters.size() << std::endl;
 
@@ -665,6 +666,7 @@ void ContourTracker::ImportDetectedObjects(const autoware_msgs::DetectedObjectAr
 
 		if(!FilterBySize(obj, m_CurrentPos)) continue;
 		if(!FilterByMap(obj, m_CurrentPos, m_Map)) continue;
+
 		m_FilteringTime += UtilityHNS::UtilityH::GetTimeDiffNow(filter_time);
 
 		obj.id = msg.objects.at(i).id;
@@ -707,7 +709,7 @@ void ContourTracker::ImportDetectedObjects(const autoware_msgs::DetectedObjectAr
 
 bool ContourTracker::FilterByMap(const PlannerHNS::DetectedObject& obj, const PlannerHNS::WayPoint& currState, PlannerHNS::RoadNetwork& map)
 {
-	if(!bMap) return true;
+	if(!bMap || m_Params.filterType == FILTER_DISABLE) return true;
 
 	if(m_Params.filterType == FILTER_BOUNDARY)
 	{
@@ -729,15 +731,19 @@ bool ContourTracker::FilterByMap(const PlannerHNS::DetectedObject& obj, const Pl
 		{
 			PlannerHNS::RelativeInfo info;
 			PlannerHNS::PlanningHelpers::GetRelativeInfoLimited(m_ClosestLanesList.at(i)->points, obj.center, info);
-			PlannerHNS::WayPoint wp = m_ClosestLanesList.at(i)->points.at(info.iFront);
-
-			double direct_d = hypot(wp.pos.y - obj.center.pos.y, wp.pos.x - obj.center.pos.x);
-
-		//	std::cout << "- Distance To Car: " << obj.distance_to_center << ", PerpD: " << info.perp_distance << ", DirectD: " << direct_d << ", bAfter: " << info.bAfter << ", bBefore: " << info.bBefore << std::endl;
-
-			if((info.bAfter || info.bBefore) && direct_d > m_Params.centerlineFilterDistance*2.0)
+			if(info.iFront >= 0  &&  info.iFront < m_ClosestLanesList.at(i)->points.size())
 			{
-				continue;
+
+				PlannerHNS::WayPoint wp = m_ClosestLanesList.at(i)->points.at(info.iFront);
+
+				double direct_d = hypot(wp.pos.y - obj.center.pos.y, wp.pos.x - obj.center.pos.x);
+
+			//	std::cout << "- Distance To Car: " << obj.distance_to_center << ", PerpD: " << info.perp_distance << ", DirectD: " << direct_d << ", bAfter: " << info.bAfter << ", bBefore: " << info.bBefore << std::endl;
+
+				if((info.bAfter || info.bBefore) && direct_d > m_Params.centerlineFilterDistance*2.0)
+				{
+					continue;
+				}
 			}
 
 			if(fabs(info.perp_distance) <= m_Params.centerlineFilterDistance)
