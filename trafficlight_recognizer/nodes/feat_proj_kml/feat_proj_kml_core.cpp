@@ -38,6 +38,10 @@ namespace trafficlight_recognizer
 
 		ros::NodeHandle _nh;
 		_nh.param<std::string>("/feature_proj_kml/camera_frame", camera_frame_, "camera");
+		if(camera_frame_.empty() || camera_frame_.size() < 2)
+		{
+			camera_frame_ = "camera";
+		}
 
 		camera_info_subscriber_ = nh.subscribe("camera_info", 100, &FeatProjKML::cameraInfoCallback, this);
 		adjustXY_subscriber_ = nh.subscribe("config/adjust_xy", 100, &FeatProjKML::adjustXYCallback, this);
@@ -133,13 +137,11 @@ namespace trafficlight_recognizer
 
 	void FeatProjKML::CollectAndPublishSigns()
 	{
-
 	  autoware_msgs::Signals signalsInFrame;
-
 	  for (const auto& signal_map : m_Map.trafficLights)
 	  {
 
-		  //std::cout << "Light: " << signal_map.id << " (" << signal_map.pose.pos.x <<", " << signal_map.pose.pos.y  << ")" << std::endl;
+		//std::cout << "Light: " << signal_map.id << " (" << signal_map.pose.pos.x <<", " << signal_map.pose.pos.y  << ")" << std::endl;
 	    Eigen::Vector3f signalcenter(signal_map.pose.pos.x, signal_map.pose.pos.y, signal_map.pose.pos.z);
 	    Eigen::Vector3f signalcenterx(signal_map.pose.pos.x, signal_map.pose.pos.y, signal_map.pose.pos.z + DEFAULT_SIGNAL_LAMP_RADIUS);
 
