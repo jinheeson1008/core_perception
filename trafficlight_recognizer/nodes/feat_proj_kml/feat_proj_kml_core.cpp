@@ -168,7 +168,7 @@ namespace trafficlight_recognizer
 	      sign.z = signalcenter.z();
 	      sign.hang = signal_map.horizontal_angle;  // hang is expressed in [0, 360] degree
 	      sign.type = 0;
-	      sign.linkId = signal_map.linkID;
+	      sign.linkId = signal_map.groupID;
 	      sign.plId = signal_map.stopLineID;
 
 	      if (signal_map.lightType == PlannerHNS::RED_LIGHT)
@@ -226,7 +226,7 @@ namespace trafficlight_recognizer
 	  signalsInFrame.header.stamp = ros::Time::now();
 	  roi_sign_pub_.publish(signalsInFrame);
 
-	  //std::cout << "There are " << signalsInFrame.Signals.size() << " signals in range" << std::endl;
+	 // std::cout << "There are " << signalsInFrame.Signals.size() << " signals in range" << std::endl;
 	}
 
 	/*
