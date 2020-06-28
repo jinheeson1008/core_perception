@@ -76,7 +76,7 @@ ContourTracker::ContourTracker()
 	if(m_Params.bEnableInternalVisualization)
 	{
 		pub_DetectedPolygonsRviz = nh.advertise<visualization_msgs::MarkerArray>("/detection/contour_tracker/detected_polygons", 1);
-		pub_TrackedObstaclesRviz = nh.advertise<jsk_recognition_msgs::BoundingBoxArray>("op_planner_tracked_boxes", 1);
+		//pub_TrackedObstaclesRviz = nh.advertise<jsk_recognition_msgs::BoundingBoxArray>("op_planner_tracked_boxes", 1);
 	}
 
 	if(m_Params.bEnableTTC)
@@ -313,49 +313,6 @@ void ContourTracker::dumpResultText(autoware_msgs::DetectedObjectArray& detected
   frame_count_ ++;
 }
 
-//void ContourTracker::transformDetectedObjects(const std::string& src_frame, const std::string& dst_frame, const tf::StampedTransform& trans, const autoware_msgs::DetectedObjectArray& input, autoware_msgs::DetectedObjectArray& transformed_input)
-//{
-//  transformed_input.header = input.header;
-//  for (size_t i = 0; i < input.objects.size(); i++)
-//  {
-//    geometry_msgs::PoseStamped pose_out;
-//    tf::Transform input_object_pose;
-//    tf::Transform poly_pose;
-//
-//    autoware_msgs::DetectedObject dd;
-//	dd = input.objects.at(i);
-//	dd.header.frame_id = dst_frame;
-//	dd.header.stamp = ros::Time();
-//	dd.convex_hull.header.frame_id = dst_frame;
-//	dd.convex_hull.header.stamp = ros::Time();
-//	dd.space_frame = dst_frame;
-//
-//    input_object_pose.setOrigin(tf::Vector3(input.objects.at(i).pose.position.x, input.objects.at(i).pose.position.y, input.objects.at(i).pose.position.z));
-//    input_object_pose.setRotation(tf::Quaternion(input.objects.at(i).pose.orientation.x, input.objects.at(i).pose.orientation.y, input.objects.at(i).pose.orientation.z, input.objects.at(i).pose.orientation.w));
-//    tf::poseTFToMsg(trans * input_object_pose, pose_out.pose);
-//    dd.pose = pose_out.pose;
-//
-//    dd.convex_hull.polygon.points.clear();
-//    geometry_msgs::Point32 p;
-//    for(unsigned int j=0; j < input.objects.at(i).convex_hull.polygon.points.size(); j++)
-//    {
-//    	p = input.objects.at(i).convex_hull.polygon.points.at(j);
-//    	if(m_Params.bUseDetectionHulls == true)
-//    	{
-//			poly_pose.setOrigin(tf::Vector3(p.x, p.y, p.z));
-//			poly_pose.setRotation(tf::Quaternion(input.objects.at(i).pose.orientation.x, input.objects.at(i).pose.orientation.y, input.objects.at(i).pose.orientation.z, input.objects.at(i).pose.orientation.w));
-//			tf::poseTFToMsg(trans * poly_pose, pose_out.pose);
-//			p.x = pose_out.pose.position.x;
-//			p.y = pose_out.pose.position.y;
-//			p.z = pose_out.pose.position.z;
-//    	}
-//    	dd.convex_hull.polygon.points.push_back(p);
-//    }
-//
-//    transformed_input.objects.push_back(dd);
-//  }
-//}
-
 void ContourTracker::transformPoseToGlobal(const std::string& src_frame, const std::string& dst_frame, const tf::StampedTransform& local2global, const autoware_msgs::CloudClusterArray& input, autoware_msgs::CloudClusterArray& transformed_input)
 {
   for (size_t i = 0; i < input.clusters.size(); i++)
@@ -383,52 +340,6 @@ void ContourTracker::transformPoseToGlobal(const std::string& src_frame, const s
     transformed_input.clusters.push_back(dd);
   }
 }
-
-//void ContourTracker::transformPoseToLocal(const std::string& src_frame, const std::string& dst_frame, jsk_recognition_msgs::BoundingBoxArray& jskbboxes_output, autoware_msgs::DetectedObjectArray& detected_objects_output, tf::StampedTransform& trans)
-//{
-//  for (size_t i = 0; i < detected_objects_output.objects.size(); i++)
-//  {
-//    geometry_msgs::PoseStamped detected_pose_in, detected_pose_out;
-//
-//    detected_pose_in.header = jskbboxes_output.header;
-//    detected_pose_in.header.frame_id = src_frame;
-//    detected_pose_in.pose = detected_objects_output.objects[i].pose;
-//
-//    tf::Transform output_object_pose;
-//    output_object_pose.setOrigin(tf::Vector3(detected_objects_output.objects[i].pose.position.x,
-//                                             detected_objects_output.objects[i].pose.position.y,
-//                                             detected_objects_output.objects[i].pose.position.z));
-//    output_object_pose.setRotation(tf::Quaternion(
-//        detected_objects_output.objects[i].pose.orientation.x, detected_objects_output.objects[i].pose.orientation.y,
-//        detected_objects_output.objects[i].pose.orientation.z, detected_objects_output.objects[i].pose.orientation.w));
-//    tf::poseTFToMsg(trans.inverse() * output_object_pose, detected_pose_out.pose);
-//
-//    detected_objects_output.objects[i].header.frame_id = dst_frame;
-//    detected_objects_output.objects[i].pose = detected_pose_out.pose;
-//  }
-//  detected_objects_output.header.frame_id = dst_frame;
-//
-//  for (size_t i = 0; i < jskbboxes_output.boxes.size(); i++)
-//  {
-//    geometry_msgs::PoseStamped jsk_pose_in, jsk_pose_out;
-//    jsk_pose_in.header = jskbboxes_output.header;
-//    jsk_pose_in.header.frame_id = src_frame;
-//    jsk_pose_in.pose = jskbboxes_output.boxes[i].pose;
-//
-//    tf::Transform output_bbox_pose;
-//    output_bbox_pose.setOrigin(tf::Vector3(jskbboxes_output.boxes[i].pose.position.x,
-//                                           jskbboxes_output.boxes[i].pose.position.y,
-//                                           jskbboxes_output.boxes[i].pose.position.z));
-//    output_bbox_pose.setRotation(
-//        tf::Quaternion(jskbboxes_output.boxes[i].pose.orientation.x, jskbboxes_output.boxes[i].pose.orientation.y,
-//                       jskbboxes_output.boxes[i].pose.orientation.z, jskbboxes_output.boxes[i].pose.orientation.w));
-//    tf::poseTFToMsg(trans.inverse() * output_bbox_pose, jsk_pose_out.pose);
-//
-//    jskbboxes_output.boxes[i].header.frame_id = dst_frame;
-//    jskbboxes_output.boxes[i].pose = jsk_pose_out.pose;
-//  }
-//  jskbboxes_output.header.frame_id = dst_frame;
-//}
 
 void ContourTracker::callbackGetDetectedObjects(const autoware_msgs::DetectedObjectArrayConstPtr& msg)
 {
@@ -564,7 +475,6 @@ void ContourTracker::ImportCloudClusters(const autoware_msgs::CloudClusterArray&
 
 	PlannerHNS::DetectedObject obj;
 	PlannerHNS::GPSPoint avg_center;
-	PolygonGenerator polyGen(m_Params.nQuarters);
 	pcl::PointCloud<pcl::PointXYZ> point_cloud;
 
 	if(bMap)
@@ -614,8 +524,8 @@ void ContourTracker::ImportCloudClusters(const autoware_msgs::CloudClusterArray&
 		UtilityHNS::UtilityH::GetTickCount(poly_est_time);
 		point_cloud.clear();
 		pcl::fromROSMsg(msg.clusters.at(i).cloud, point_cloud);
-
-		obj.contour = polyGen.EstimateClusterPolygon(point_cloud ,obj.center.pos,avg_center, m_Params.PolygonRes);
+		PolygonGenerator polyGen(m_Params.nQuarters);
+		obj.contour = polyGen.EstimateClusterPolygon(point_cloud ,obj.center.pos, avg_center, m_Params.PolygonRes);
 
 		m_PolyEstimationTime += UtilityHNS::UtilityH::GetTimeDiffNow(poly_est_time);
 		m_nOriginalPoints += point_cloud.points.size();
@@ -832,8 +742,6 @@ void ContourTracker::VisualizeLocalTracking()
 				m_DetectedPolygonsActual.at(3),
 				m_DetectedPolygonsActual.at(4));
 
-	PlannerHNS::ROSHelpers::ConvertMatchingMarkers(m_ObstacleTracking.m_MatchList, m_MatchingInfoDummy.at(0), m_MatchingInfoActual.at(0), 0);
-
 	m_DetectedPolygonsAllMarkers.markers.clear();
 	m_DetectedPolygonsAllMarkers.markers.insert(m_DetectedPolygonsAllMarkers.markers.end(), m_DetectedPolygonsActual.at(0).markers.begin(), m_DetectedPolygonsActual.at(0).markers.end());
 	m_DetectedPolygonsAllMarkers.markers.insert(m_DetectedPolygonsAllMarkers.markers.end(), m_DetectedPolygonsActual.at(1).markers.begin(), m_DetectedPolygonsActual.at(1).markers.end());
@@ -841,44 +749,34 @@ void ContourTracker::VisualizeLocalTracking()
 	m_DetectedPolygonsAllMarkers.markers.insert(m_DetectedPolygonsAllMarkers.markers.end(), m_DetectedPolygonsActual.at(3).markers.begin(), m_DetectedPolygonsActual.at(3).markers.end());
 	m_DetectedPolygonsAllMarkers.markers.insert(m_DetectedPolygonsAllMarkers.markers.end(), m_DetectedPolygonsActual.at(4).markers.begin(), m_DetectedPolygonsActual.at(4).markers.end());
 
-
-//	visualization_msgs::MarkerArray all_circles;
-//	for(unsigned int i = 0; i < m_ObstacleTracking.m_InterestRegions.size(); i++)
-//	{
-//		visualization_msgs::Marker circle_mkrs;
-//		PlannerHNS::ROSHelpers::CreateCircleMarker(m_CurrentPos, m_ObstacleTracking.m_InterestRegions.at(i)->radius, i ,circle_mkrs );
-//		all_circles.markers.push_back(circle_mkrs);
-//	}
-//
-//	m_DetectedPolygonsAllMarkers.markers.insert(m_DetectedPolygonsAllMarkers.markers.end(), all_circles.markers.begin(), all_circles.markers.end());
-
-	m_DetectedPolygonsAllMarkers.markers.insert(m_DetectedPolygonsAllMarkers.markers.end(), m_MatchingInfoActual.at(0).markers.begin(), m_MatchingInfoActual.at(0).markers.end());
+	//PlannerHNS::ROSHelpers::ConvertMatchingMarkers(m_ObstacleTracking.m_MatchList, m_MatchingInfoDummy.at(0), m_MatchingInfoActual.at(0), 0);
+	//m_DetectedPolygonsAllMarkers.markers.insert(m_DetectedPolygonsAllMarkers.markers.end(), m_MatchingInfoActual.at(0).markers.begin(), m_MatchingInfoActual.at(0).markers.end());
 
 	pub_DetectedPolygonsRviz.publish(m_DetectedPolygonsAllMarkers);
 
-	jsk_recognition_msgs::BoundingBoxArray boxes_array;
-	boxes_array.header.frame_id = "map";
-	boxes_array.header.stamp  = ros::Time();
-
-	for(unsigned int i = 0 ; i < m_ObstacleTracking.m_DetectedObjects.size(); i++)
-	{
-		jsk_recognition_msgs::BoundingBox box;
-		box.header.frame_id = "map";
-		box.header.stamp = ros::Time().now();
-		box.pose.position.x = m_ObstacleTracking.m_DetectedObjects.at(i).center.pos.x;
-		box.pose.position.y = m_ObstacleTracking.m_DetectedObjects.at(i).center.pos.y;
-		box.pose.position.z = m_ObstacleTracking.m_DetectedObjects.at(i).center.pos.z;
-
-		box.value = 0.9;
-
-		box.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0, 0, m_ObstacleTracking.m_DetectedObjects.at(i).center.pos.a+M_PI_2);
-		box.dimensions.x = m_ObstacleTracking.m_DetectedObjects.at(i).l;
-		box.dimensions.y = m_ObstacleTracking.m_DetectedObjects.at(i).w;
-		box.dimensions.z = m_ObstacleTracking.m_DetectedObjects.at(i).h;
-		boxes_array.boxes.push_back(box);
-	}
-
-	pub_TrackedObstaclesRviz.publish(boxes_array);
+//	jsk_recognition_msgs::BoundingBoxArray boxes_array;
+//	boxes_array.header.frame_id = "map";
+//	boxes_array.header.stamp  = ros::Time();
+//
+//	for(unsigned int i = 0 ; i < m_ObstacleTracking.m_DetectedObjects.size(); i++)
+//	{
+//		jsk_recognition_msgs::BoundingBox box;
+//		box.header.frame_id = "map";
+//		box.header.stamp = ros::Time().now();
+//		box.pose.position.x = m_ObstacleTracking.m_DetectedObjects.at(i).center.pos.x;
+//		box.pose.position.y = m_ObstacleTracking.m_DetectedObjects.at(i).center.pos.y;
+//		box.pose.position.z = m_ObstacleTracking.m_DetectedObjects.at(i).center.pos.z;
+//
+//		box.value = 0.9;
+//
+//		box.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0, 0, m_ObstacleTracking.m_DetectedObjects.at(i).center.pos.a+M_PI_2);
+//		box.dimensions.x = m_ObstacleTracking.m_DetectedObjects.at(i).l;
+//		box.dimensions.y = m_ObstacleTracking.m_DetectedObjects.at(i).w;
+//		box.dimensions.z = m_ObstacleTracking.m_DetectedObjects.at(i).h;
+//		boxes_array.boxes.push_back(box);
+//	}
+//
+//	pub_TrackedObstaclesRviz.publish(boxes_array);
 }
 
 void ContourTracker::Log()

@@ -169,7 +169,7 @@ protected:
 	ros::Publisher pub_AllTrackedObjects;
 
 	ros::Publisher pub_DetectedPolygonsRviz;
-	ros::Publisher pub_TrackedObstaclesRviz;
+	//ros::Publisher pub_TrackedObstaclesRviz;
 	ros::Publisher pub_TTC_PathRviz;
 
 	// define subscribers.

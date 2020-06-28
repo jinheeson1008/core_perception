@@ -43,9 +43,9 @@ namespace trafficlight_recognizer
 			camera_frame_ = "camera";
 		}
 
-		camera_info_subscriber_ = nh.subscribe("camera_info", 100, &FeatProjKML::cameraInfoCallback, this);
-		adjustXY_subscriber_ = nh.subscribe("config/adjust_xy", 100, &FeatProjKML::adjustXYCallback, this);
-		roi_sign_pub_ = nh.advertise<autoware_msgs::Signals>("roi_signal", 100);
+		camera_info_subscriber_ = nh.subscribe("camera_info", 10, &FeatProjKML::cameraInfoCallback, this);
+		adjustXY_subscriber_ = nh.subscribe("config/adjust_xy", 10, &FeatProjKML::adjustXYCallback, this);
+		roi_sign_pub_ = nh.advertise<autoware_msgs::Signals>("roi_signal", 10);
 
 		if(m_MapType == PlannerHNS::MAP_KML_FILE_NAME)
 		{
