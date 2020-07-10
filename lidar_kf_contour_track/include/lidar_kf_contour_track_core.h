@@ -45,6 +45,7 @@
 #include <jsk_recognition_msgs/BoundingBoxArray.h>
 #include <autoware_msgs/CloudClusterArray.h>
 #include <autoware_msgs/DetectedObjectArray.h>
+#include <autoware_msgs/VehicleStatus.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <autoware_lanelet2_msgs/MapBin.h>
@@ -179,6 +180,7 @@ protected:
 	ros::Subscriber sub_current_velocity;
 	ros::Subscriber sub_robot_odom;
 	ros::Subscriber sub_can_info;
+	ros::Subscriber sub_vehicle_status;
 	ros::Subscriber sub_map_file_name;
 
 
@@ -186,9 +188,10 @@ protected:
 	void callbackGetCloudClusters(const autoware_msgs::CloudClusterArrayConstPtr &msg);
 	void callbackGetCurrentPose(const geometry_msgs::PoseStampedConstPtr& msg);
 	void callbackGetDetectedObjects(const autoware_msgs::DetectedObjectArrayConstPtr& msg);
-	void callbackGetVehicleStatus(const geometry_msgs::TwistStampedConstPtr& msg);
+	void callbackGetAutowareStatus(const geometry_msgs::TwistStampedConstPtr& msg);
 	void callbackGetCanInfo(const autoware_can_msgs::CANInfoConstPtr & msg);
 	void callbackGetRobotOdom(const nav_msgs::OdometryConstPtr& msg);
+	void callbackGetVehicleStatus(const autoware_msgs::VehicleStatusConstPtr & msg);
 
 	//Helper Functions
 	void VisualizeLocalTracking();

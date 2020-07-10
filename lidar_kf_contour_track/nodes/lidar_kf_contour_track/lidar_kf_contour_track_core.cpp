@@ -67,11 +67,23 @@ ContourTracker::ContourTracker()
 	sub_current_pose = nh.subscribe("/current_pose",   1, &ContourTracker::callbackGetCurrentPose, 	this);
 
 	if(m_VelocitySource == 0)
+	{
 		sub_robot_odom = nh.subscribe("/carla/ego_vehicle/odometry", 1, &ContourTracker::callbackGetRobotOdom, this);
+	}
 	else if(m_VelocitySource == 1)
-		sub_current_velocity = nh.subscribe("/current_velocity", 1, &ContourTracker::callbackGetVehicleStatus, this);
+	{
+		sub_current_velocity = nh.subscribe("/current_velocity", 1, &ContourTracker::callbackGetAutowareStatus, this);
+	}
 	else if(m_VelocitySource == 2)
+	{
 		sub_can_info = nh.subscribe("/can_info", 1, &ContourTracker::callbackGetCanInfo, this);
+	}
+	else if(m_VelocitySource == 3)
+	{
+		std::string vel_topic;
+		nh.getParam("/op_common_params/vehicle_status_topic", vel_topic);
+		sub_vehicle_status = nh.subscribe(vel_topic, 1, &ContourTracker::callbackGetVehicleStatus, this);
+	}
 
 	if(m_Params.bEnableInternalVisualization)
 	{
@@ -700,7 +712,7 @@ void ContourTracker::callbackGetCurrentPose(const geometry_msgs::PoseStampedCons
   bNewCurrentPos = true;
 }
 
-void ContourTracker::callbackGetVehicleStatus(const geometry_msgs::TwistStampedConstPtr& msg)
+void ContourTracker::callbackGetAutowareStatus(const geometry_msgs::TwistStampedConstPtr& msg)
 {
 	m_VehicleStatus.speed = msg->twist.linear.x;
 	m_CurrentPos.v = m_VehicleStatus.speed;
@@ -714,6 +726,7 @@ void ContourTracker::callbackGetVehicleStatus(const geometry_msgs::TwistStampedC
 void ContourTracker::callbackGetCanInfo(const autoware_can_msgs::CANInfoConstPtr& msg)
 {
 	m_VehicleStatus.speed = msg->speed/3.6;
+	m_CurrentPos.v = m_VehicleStatus.speed;
 	m_VehicleStatus.steer = msg->angle * 0.4 / 1.0;
 	UtilityHNS::UtilityH::GetTickCount(m_VehicleStatus.tStamp);
 }
@@ -721,11 +734,21 @@ void ContourTracker::callbackGetCanInfo(const autoware_can_msgs::CANInfoConstPtr
 void ContourTracker::callbackGetRobotOdom(const nav_msgs::OdometryConstPtr& msg)
 {
 	m_VehicleStatus.speed = msg->twist.twist.linear.x;
+	m_CurrentPos.v = m_VehicleStatus.speed;
 	if(msg->twist.twist.linear.x != 0)
 	{
 		m_VehicleStatus.steer += atan(2.7 * msg->twist.twist.angular.z/msg->twist.twist.linear.x);
 	}
 	UtilityHNS::UtilityH::GetTickCount(m_VehicleStatus.tStamp);
+}
+
+void ContourTracker::callbackGetVehicleStatus(const autoware_msgs::VehicleStatusConstPtr & msg)
+{
+	m_VehicleStatus.speed = msg->speed/3.6;
+	m_VehicleStatus.steer = msg->angle*DEG2RAD;
+	m_CurrentPos.v = m_VehicleStatus.speed;
+
+//	std::cout << "Vehicle Real Status, Speed: " << m_VehicleStatus.speed << ", Steer Angle: " << m_VehicleStatus.steer << ", Steermode: " << msg->steeringmode << ", Org angle: " << msg->angle <<  std::endl;
 }
 
 void ContourTracker::VisualizeLocalTracking()
