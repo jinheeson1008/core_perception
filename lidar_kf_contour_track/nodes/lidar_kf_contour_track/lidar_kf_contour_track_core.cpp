@@ -745,7 +745,7 @@ void ContourTracker::callbackGetRobotOdom(const nav_msgs::OdometryConstPtr& msg)
 void ContourTracker::callbackGetVehicleStatus(const autoware_msgs::VehicleStatusConstPtr & msg)
 {
 	m_VehicleStatus.speed = msg->speed/3.6;
-	m_VehicleStatus.steer = msg->angle*DEG2RAD;
+	m_VehicleStatus.steer = -msg->angle*DEG2RAD;
 	m_CurrentPos.v = m_VehicleStatus.speed;
 
 //	std::cout << "Vehicle Real Status, Speed: " << m_VehicleStatus.speed << ", Steer Angle: " << m_VehicleStatus.steer << ", Steermode: " << msg->steeringmode << ", Org angle: " << msg->angle <<  std::endl;
@@ -950,11 +950,11 @@ void ContourTracker::MainLoop()
 //Mapping Section
 void ContourTracker::LoadMap()
 {
-	if(m_Params.filterType != FILTER_DISABLE && m_MapType == PlannerHNS::MAP_KML_FILE && !bMap)
+	if(m_MapType == PlannerHNS::MAP_KML_FILE && !bMap)
 	{
 		LoadKmlMap(m_MapPath);
 	}
-	else if (m_Params.filterType != FILTER_DISABLE && m_MapType == PlannerHNS::MAP_FOLDER && !bMap)
+	else if (m_MapType == PlannerHNS::MAP_FOLDER && !bMap)
 	{
 		PlannerHNS::VectorMapLoader vec_loader(1, m_Params.bEnableLaneChange);
 		m_Map.Clear();
@@ -966,7 +966,7 @@ void ContourTracker::LoadMap()
 			bMap = true;
 		}
 	}
-	else if (m_Params.filterType != FILTER_DISABLE && m_MapType == PlannerHNS::MAP_LANELET_2 && !bMap)
+	else if (m_MapType == PlannerHNS::MAP_LANELET_2 && !bMap)
 	{
 		bMap = true;
 		PlannerHNS::Lanelet2MapLoader map_loader;
@@ -974,7 +974,7 @@ void ContourTracker::LoadMap()
 		map_loader.LoadMap(m_MapPath, m_Map);
 		PlannerHNS::MappingHelpers::ConvertVelocityToMeterPerSecond(m_Map);
 	}
-	else if (m_Params.filterType != FILTER_DISABLE && m_MapType == PlannerHNS::MAP_AUTOWARE && !bMap)
+	else if (m_MapType == PlannerHNS::MAP_AUTOWARE && !bMap)
 	{
 		if(m_MapRaw.AreMessagesReceived())
 		{
@@ -984,10 +984,6 @@ void ContourTracker::LoadMap()
 			vec_loader.LoadFromData(m_MapRaw, m_Map);
 			PlannerHNS::MappingHelpers::ConvertVelocityToMeterPerSecond(m_Map);
 		}
-	}
-	else if(m_Params.filterType == FILTER_DISABLE)
-	{
-		bMap = true;
 	}
 }
 
