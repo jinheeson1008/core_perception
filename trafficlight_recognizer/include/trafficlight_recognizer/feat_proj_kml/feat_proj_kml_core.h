@@ -34,8 +34,6 @@
 #include <string>
 #include <vector>
 
-static constexpr double DEFAULT_SIGNAL_LAMP_RADIUS = 0.3;
-
 namespace trafficlight_recognizer
 {
 class FeatProjKML
@@ -56,11 +54,13 @@ private:
   ros::Publisher roi_sign_pub_;
 
   std::string camera_frame_;
+  std::string camera_info_topic_;
 
 	PlannerHNS::MAP_SOURCE_TYPE m_MapType = PlannerHNS::MAP_KML_FILE;
 	std::string m_MapPath;
 	PlannerHNS::RoadNetwork m_Map;
 	bool bMap = false;
+	double m_SignalLampDefaultRaius;
 
   int adjust_proj_x_ = 0;
   int adjust_proj_y_ = 0;

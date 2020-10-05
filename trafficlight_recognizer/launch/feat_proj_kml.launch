@@ -2,10 +2,16 @@
   <arg name="camera_id" default="/"/>
   <arg name="camera_info_src" default="/camera_info"/>
   <arg name="use_path_info" default="false"/> <!-- Not used for kml based node -->
+  <arg name="x_adjust" default="0" />
+  <arg name="y_adjust" default="0" />
+  <arg name="signal_default_radius" default="0.2" />
 
   <node pkg="trafficlight_recognizer" type="feat_proj_kml" name="feature_proj_kml" output="screen">
     <remap from="camera_info" to="$(arg camera_id)$(arg camera_info_src)"/>
     <param name="camera_frame" type="str" value="$(arg camera_id)"/>
     <param name="use_path_info" type="bool" value="$(arg use_path_info)"/>
+    <param name="x_adjust" value="$(arg x_adjust)"/>
+    <param name="y_adjust" value="$(arg y_adjust)"/>
+    <param name="signal_default_radius" value="$(arg signal_default_radius)"/>
   </node>
 </launch>

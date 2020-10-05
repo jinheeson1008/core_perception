@@ -33,17 +33,26 @@ namespace trafficlight_recognizer
 	{
 		m_MapType = PlannerHNS::MAP_KML_FILE;
 		bMap = false;
+		m_SignalLampDefaultRaius = 0.5;
 
 		ReadCommonParams();
 
 		ros::NodeHandle _nh;
 		_nh.param<std::string>("/feature_proj_kml/camera_frame", camera_frame_, "camera");
+		_nh.param<std::string>("/feature_proj_kml/camera_info_topic", camera_info_topic_, "/camera_info");
+		_nh.getParam("/feature_proj_kml/x_adjust", adjust_proj_x_);
+		_nh.getParam("/feature_proj_kml/y_adjust", adjust_proj_y_);
+		_nh.getParam("/feature_proj_kml/signal_default_radius", m_SignalLampDefaultRaius);
+
+		//std::cout << "X: " << adjust_proj_x_ << ", Y: " << adjust_proj_y_ << ", camera_frame: " << camera_frame_ << ", camera_info: " << camera_info_topic_ <<  std::endl;
+
+
 		if(camera_frame_.empty() || camera_frame_.size() < 2)
 		{
 			camera_frame_ = "camera";
 		}
 
-		camera_info_subscriber_ = nh.subscribe("camera_info", 10, &FeatProjKML::cameraInfoCallback, this);
+		camera_info_subscriber_ = nh.subscribe(camera_info_topic_, 10, &FeatProjKML::cameraInfoCallback, this);
 		adjustXY_subscriber_ = nh.subscribe("config/adjust_xy", 10, &FeatProjKML::adjustXYCallback, this);
 		roi_sign_pub_ = nh.advertise<autoware_msgs::Signals>("roi_signal", 10);
 
@@ -140,10 +149,9 @@ namespace trafficlight_recognizer
 	  autoware_msgs::Signals signalsInFrame;
 	  for (const auto& signal_map : m_Map.trafficLights)
 	  {
-
 		//std::cout << "Light: " << signal_map.id << " (" << signal_map.pose.pos.x <<", " << signal_map.pose.pos.y  << ")" << std::endl;
 	    Eigen::Vector3f signalcenter(signal_map.pose.pos.x, signal_map.pose.pos.y, signal_map.pose.pos.z);
-	    Eigen::Vector3f signalcenterx(signal_map.pose.pos.x, signal_map.pose.pos.y, signal_map.pose.pos.z + DEFAULT_SIGNAL_LAMP_RADIUS);
+	    Eigen::Vector3f signalcenterx(signal_map.pose.pos.x, signal_map.pose.pos.y, signal_map.pose.pos.z + m_SignalLampDefaultRaius);
 
 	    int u=0, v=0;
 	    if (project2(signalcenter, &u, &v, false) == true)
@@ -350,7 +358,7 @@ namespace trafficlight_recognizer
 
 			if(bMap)
 			{
-				if (prev_orientation.vec() != orientation_.vec() && prev_position != position_)
+				//if (prev_orientation.vec() != orientation_.vec() && prev_position != position_)
 				{
 					CollectAndPublishSigns();
 				}
