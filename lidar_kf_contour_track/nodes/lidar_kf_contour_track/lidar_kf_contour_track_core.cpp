@@ -745,7 +745,7 @@ void ContourTracker::callbackGetRobotOdom(const nav_msgs::OdometryConstPtr& msg)
 void ContourTracker::callbackGetVehicleStatus(const autoware_msgs::VehicleStatusConstPtr & msg)
 {
 	m_VehicleStatus.speed = msg->speed/3.6;
-	m_VehicleStatus.steer = msg->angle*DEG2RAD;
+	m_VehicleStatus.steer = -msg->angle*DEG2RAD;
 	m_CurrentPos.v = m_VehicleStatus.speed;
 
 //	std::cout << "Vehicle Real Status, Speed: " << m_VehicleStatus.speed << ", Steer Angle: " << m_VehicleStatus.steer << ", Steermode: " << msg->steeringmode << ", Org angle: " << msg->angle <<  std::endl;
