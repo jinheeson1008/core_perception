@@ -42,7 +42,7 @@ std::vector<PlannerHNS::GPSPoint> PolygonGenerator::EstimateClusterPolygon(const
 		p.pos.z = cluster.points.at(i).z; //original_centroid.z;
 
 		PlannerHNS::GPSPoint v(p.pos.x - original_centroid.x , p.pos.y - original_centroid.y, 0 , 0);
-		p.cost = pointNorm(v);
+		p.distanceCost = pointNorm(v);
 		p.pos.a = UtilityHNS::UtilityH::FixNegativeAngle(atan2(v.y, v.x))*(180. / M_PI);
 
 		for(unsigned int j = 0 ; j < m_Quarters.size(); j++)
