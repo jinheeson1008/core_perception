@@ -38,6 +38,8 @@
 #include <std_msgs/String.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <opencv2/imgproc/imgproc_c.h>
+#include <opencv2/highgui/highgui_c.h>
 
 thresholdSet thSet;
 
@@ -114,8 +116,8 @@ static void putResult_inText(cv::Mat* image, const std::vector<Context>& context
   const float fontScale = 0.8f;
   const int fontThickness = 1;
   int baseline = 0;
-  CvPoint textOrg;
-  CvScalar textColor;
+  cv::Point textOrg;
+  cv::Scalar textColor;
 
   for (unsigned int i = 0; i < contexts.size(); i++)
   {

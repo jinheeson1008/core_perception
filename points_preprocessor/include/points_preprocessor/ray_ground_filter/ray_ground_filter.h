@@ -31,7 +31,7 @@
 #include <pcl/features/normal_3d.h>
 #include <pcl/features/normal_3d_omp.h>
 #include <pcl/filters/extract_indices.h>
-#include <velodyne_pointcloud/point_types.h>
+#include <velodyne_pcl/point_types.h>
 #include "autoware_config_msgs/ConfigRayGroundFilter.h"
 
 #include <tf2/transform_datatypes.h>
@@ -45,8 +45,10 @@
 #if (CV_MAJOR_VERSION == 3)
 #include "gencolors.cpp"
 #else
-#include <opencv2/contrib/contrib.hpp>
+//#include <opencv2/contrib/contrib.hpp>
+#include <opencv2/core/types_c.h>
 #endif
+#include "gencolors.cpp"
 
 class RayGroundFilter
 {

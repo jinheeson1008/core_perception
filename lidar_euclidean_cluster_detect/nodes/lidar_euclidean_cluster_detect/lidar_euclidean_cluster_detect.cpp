@@ -57,8 +57,8 @@
 
 #include <yaml-cpp/yaml.h>
 
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/core.hpp>
+#include <opencv2/highgui.hpp>
 #include <opencv2/core/version.hpp>
 
 #if (CV_MAJOR_VERSION == 3)
@@ -67,11 +67,11 @@
 
 #else
 
-#include <opencv2/contrib/contrib.hpp>
+//#include <opencv2/contrib/contrib.hpp>
 #include <autoware_msgs/DetectedObjectArray.h>
 
 #endif
-
+#include "gencolors.cpp"
 #include "cluster.h"
 
 #ifdef GPU_CLUSTERING
@@ -944,11 +944,11 @@ int main(int argc, char **argv)
   _transform = &transform;
   _transform_listener = &listener;
 
-#if (CV_MAJOR_VERSION == 3)
+//#if (CV_MAJOR_VERSION == 3)
   generateColors(_colors, 255);
-#else
-  cv::generateColors(_colors, 255);
-#endif
+//#else
+//  cv::generateColors(_colors, 255);
+//#endif
 
   _pub_cluster_cloud = h.advertise<sensor_msgs::PointCloud2>("/points_cluster", 1);
   _pub_ground_cloud = h.advertise<sensor_msgs::PointCloud2>("/points_ground", 1);

@@ -110,7 +110,7 @@ static bool checkExtinctionLight(const cv::Mat& src_img, const cv::Point top_lef
   cv::Mat roi = src_img(cv::Rect(roi_top_left, roi_bot_right));
 
   cv::Mat roi_HSV;
-  cvtColor(roi, roi_HSV, CV_BGR2HSV);
+  cvtColor(roi, roi_HSV, cv::COLOR_BGR2HSV);
 
   cv::Mat hsv_channel[3];
   split(roi_HSV, hsv_channel);
@@ -130,7 +130,7 @@ static bool checkExtinctionLight(const cv::Mat& src_img, const cv::Point top_lef
   /* filter by its shape and search dark region */
   std::vector<std::vector<cv::Point> > dark_contours;
   std::vector<cv::Vec4i> dark_hierarchy;
-  findContours(topHat_dark, dark_contours, dark_hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
+  findContours(topHat_dark, dark_contours, dark_hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_NONE);
 
   int contours_idx = 0;
   bool isThere_dark = false;
@@ -185,12 +185,12 @@ static cv::Mat signalDetect_inROI(const cv::Mat& roi, const cv::Mat& src_img, co
   cv::Mat binarized = cv::Mat::zeros(roi.rows, roi.cols, CV_8UC1);
   bitwise_or(red_mask, yellow_mask, binarized);
   bitwise_or(binarized, green_mask, binarized);
-  threshold(binarized, binarized, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
+  threshold(binarized, binarized, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
 
   /* filter by its shape and index each bright region */
   std::vector<std::vector<cv::Point> > bright_contours;
   std::vector<cv::Vec4i> bright_hierarchy;
-  findContours(binarized, bright_contours, bright_hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
+  findContours(binarized, bright_contours, bright_hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_NONE);
 
   cv::Mat bright_mask = cv::Mat::zeros(roi.rows, roi.cols, CV_8UC1);
 
@@ -222,7 +222,7 @@ static cv::Mat signalDetect_inROI(const cv::Mat& roi, const cv::Mat& src_img, co
       candidates.push_back(cnd);
     }
 
-    drawContours(bright_mask, bright_contours, contours_idx, rangeColor, CV_FILLED, 8, bright_hierarchy, 0);
+    drawContours(bright_mask, bright_contours, contours_idx, rangeColor, cv::FILLED, 8, bright_hierarchy, 0);
 
     /* only contours on toplevel are considered */
     contours_idx = bright_hierarchy[contours_idx][0];
@@ -268,7 +268,7 @@ static cv::Mat signalDetect_inROI(const cv::Mat& roi, const cv::Mat& src_img, co
       if (!likeGreen && !likeYellow && !likeRed) /* this region may not be traffic light */
       {
         candidates_num--;
-        drawContours(bright_mask, bright_contours, candidates.at(i).idx, BLACK, CV_FILLED, 8, bright_hierarchy, 0);
+        drawContours(bright_mask, bright_contours, candidates.at(i).idx, BLACK, cv::FILLED, 8, bright_hierarchy, 0);
         candidates.at(i).isBlacked = true;
       }
     }
@@ -310,7 +310,7 @@ static cv::Mat signalDetect_inROI(const cv::Mat& roi, const cv::Mat& src_img, co
         candidates.at(i).isBlacked = false;
       }
 
-      drawContours(bright_mask, bright_contours, candidates.at(i).idx, regionColor, CV_FILLED, 8, bright_hierarchy, 0);
+      drawContours(bright_mask, bright_contours, candidates.at(i).idx, regionColor, cv::FILLED, 8, bright_hierarchy, 0);
     }
   }
 
@@ -329,7 +329,7 @@ void TrafficLightDetector::brightnessDetect(const cv::Mat& input)
 
   /* contrast correction */
   cv::Mat tmp;
-  cvtColor(tmpImage, tmp, CV_BGR2HSV);
+  cvtColor(tmpImage, tmp, cv::COLOR_BGR2HSV);
   std::vector<cv::Mat> hsv_channel;
   split(tmp, hsv_channel);
 
@@ -342,7 +342,7 @@ void TrafficLightDetector::brightnessDetect(const cv::Mat& input)
 
   LUT(hsv_channel[2], cv::Mat(cv::Size(256, 1), CV_8U, lut), hsv_channel[2]);
   merge(hsv_channel, tmp);
-  cvtColor(tmp, tmpImage, CV_HSV2BGR);
+  cvtColor(tmp, tmpImage, cv::COLOR_HSV2BGR);
 
   for (int i = 0; i < static_cast<int>(contexts.size()); i++)
   {
@@ -356,7 +356,7 @@ void TrafficLightDetector::brightnessDetect(const cv::Mat& input)
 
     /* convert color space (BGR -> HSV) */
     cv::Mat roi_HSV;
-    cvtColor(roi, roi_HSV, CV_BGR2HSV);
+    cvtColor(roi, roi_HSV, cv::COLOR_BGR2HSV);
 
     /* search the place where traffic signals seem to be */
     cv::Mat signalMask = signalDetect_inROI(roi_HSV, input.clone(), context.lampRadius, context.topLeft,
@@ -372,7 +372,7 @@ void TrafficLightDetector::brightnessDetect(const cv::Mat& input)
     cv::waitKey(5);
 #endif
 
-    cvtColor(extracted_HSV, extracted_HSV, CV_BGR2HSV);
+    cvtColor(extracted_HSV, extracted_HSV, cv::COLOR_BGR2HSV);
 
     int red_pixNum = 0;
     int yellow_pixNum = 0;
@@ -500,10 +500,10 @@ void TrafficLightDetector::colorDetect(const cv::Mat& input, cv::Mat* output, co
   }
 
   cv::Mat hsv, thresholded;
-  cvtColor(input, hsv, CV_RGB2HSV, 0);
+  cvtColor(input, hsv, cv::COLOR_RGB2HSV, 0);
   inRange(hsv, cv::Scalar(Hmin, 0, 0), cv::Scalar(Hmax, 255, 255), thresholded);
 
-  cvtColor(thresholded, thresholded, CV_GRAY2RGB);
+  cvtColor(thresholded, thresholded, cv::COLOR_GRAY2RGB);
   thresholded.copyTo(*output);
 
   rectangle(*output, coords, MY_COLOR_RED);

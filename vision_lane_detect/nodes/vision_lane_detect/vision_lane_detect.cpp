@@ -24,8 +24,9 @@
  */
 
 #include <stdio.h>
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/core.hpp>
+#include <opencv2/highgui/highgui_c.h>
+#include <opencv2/imgproc/imgproc_c.h>
 #include <math.h>
 #include <list>
 #include "utils.h"
@@ -511,7 +512,7 @@ static void process_image_common(IplImage *frame)
 #ifdef SHOW_DETAIL
   /* show middle line */
   cvLine(temp_frame, cvPoint(frame_size.width/2, 0),
-         cvPoint(frame_size.width/2, frame_size.height), CV_RGB(255, 255, 0), 1);
+         cvPoint(frame_size.width/2, frame_size.height), cvScalar(1, 1, 0), 1);
 
   // cvShowImage("Gray", gray);
   // cvShowImage("Edges", edges);
@@ -541,7 +542,7 @@ static void process_image_common(IplImage *frame)
 static void lane_cannyhough_callback(const sensor_msgs::Image& image_source)
 {
   cv_bridge::CvImagePtr cv_image = cv_bridge::toCvCopy(image_source, sensor_msgs::image_encodings::BGR8);
-  IplImage frame = cv_image->image;
+  IplImage frame = cvIplImage(cv_image->image);
   process_image_common(&frame);
   cvWaitKey(2);
 }

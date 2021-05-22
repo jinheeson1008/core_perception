@@ -231,8 +231,8 @@ namespace beyondtrack
       double min_val, max_val;
       CvPoint min_loc = cvPoint(0, 0);
       CvPoint max_loc = cvPoint(0, 0);
-      CvMat cvmat = sum_mat;
-      cvMinMaxLoc(&cvmat, &min_val, &max_val, &min_loc, &max_loc);
+      //CvMat cvmat = sum_mat;
+      cvMinMaxLoc(&sum_mat, &min_val, &max_val, &min_loc, &max_loc);
       offset =
         abs(car_bottom_plane_rot.at<double>(max_loc.y, 1) - car_bottom_plane_rot.at<double>(min_loc.y, 1)) /
         2.;

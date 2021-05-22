@@ -22,7 +22,7 @@
 #include "vision_darknet_detect.h"
 
 #if (CV_MAJOR_VERSION <= 2)
-#include <opencv2/contrib/contrib.hpp>
+//#include <opencv2/contrib/contrib.hpp>
 #else
 #include "gencolors.cpp"
 #endif
@@ -225,7 +225,7 @@ image Yolo3DetectorNode::convert_ipl_to_image(const sensor_msgs::ImageConstPtr& 
     else
         final_mat = mat_image;
 
-    ipl_image = final_mat;
+    ipl_image = cvIplImage(final_mat);
 
     unsigned char *data = (unsigned char *)ipl_image.imageData;
     int h = ipl_image.height;

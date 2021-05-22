@@ -69,8 +69,8 @@ namespace pcl_omp
       using pcl::PCLBase<PointSource>::input_;
       using pcl::PCLBase<PointSource>::indices_;
 
-      typedef boost::shared_ptr< Registration<PointSource, PointTarget, Scalar> > Ptr;
-      typedef boost::shared_ptr< const Registration<PointSource, PointTarget, Scalar> > ConstPtr;
+      typedef std::shared_ptr< Registration<PointSource, PointTarget, Scalar> > Ptr;
+      typedef std::shared_ptr< const Registration<PointSource, PointTarget, Scalar> > ConstPtr;
 
       typedef typename pcl::registration::CorrespondenceRejector::Ptr CorrespondenceRejectorPtr;
       typedef pcl::search::KdTree<PointTarget> KdTree;
@@ -178,12 +178,12 @@ namespace pcl_omp
         *
         * \param[in] cloud the input point cloud source
         */
-      PCL_DEPRECATED ("[pcl::registration::Registration::setInputCloud] setInputCloud is deprecated. Please use setInputSource instead.")
+      //PCL_DEPRECATED ("[pcl::registration::Registration::setInputCloud] setInputCloud is deprecated. Please use setInputSource instead.")
       void
       setInputCloud (const PointCloudSourceConstPtr &cloud);
 
       /** \brief Get a pointer to the input point cloud dataset target. */
-      PCL_DEPRECATED ("[pcl::registration::Registration::getInputCloud] getInputCloud is deprecated. Please use getInputSource instead.")
+      //PCL_DEPRECATED ("[pcl::registration::Registration::getInputCloud] getInputCloud is deprecated. Please use getInputSource instead.")
       PointCloudSourceConstPtr const
       getInputCloud ();
 
@@ -372,7 +372,7 @@ namespace pcl_omp
        * \param[in] visualizerCallback reference of the user callback function
        */
       template<typename FunctionSignature> inline bool
-      registerVisualizationCallback (boost::function<FunctionSignature> &visualizerCallback)
+      registerVisualizationCallback (std::function<FunctionSignature> &visualizerCallback)
       {
         if (visualizerCallback != NULL)
         {
@@ -572,7 +572,7 @@ namespace pcl_omp
       /** \brief Callback function to update intermediate source point cloud position during it's registration
         * to the target point cloud.
         */
-      boost::function<void(const pcl::PointCloud<PointSource> &cloud_src,
+      std::function<void(const pcl::PointCloud<PointSource> &cloud_src,
                            const std::vector<int> &indices_src,
                            const pcl::PointCloud<PointTarget> &cloud_tgt,
                            const std::vector<int> &indices_tgt)> update_visualizer_;

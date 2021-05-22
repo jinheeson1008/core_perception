@@ -35,7 +35,7 @@
 #include "vision_beyond_track.h"
 
 #if (CV_MAJOR_VERSION <= 2)
-#include <opencv2/contrib/contrib.hpp>
+//#include <opencv2/contrib/contrib.hpp>
 #else
 
 #include "gencolors.cpp"
