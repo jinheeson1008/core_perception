@@ -66,7 +66,7 @@ ContourTracker::ContourTracker()
 
 	if(m_VelocitySource == 0)
 	{
-		sub_robot_odom = nh.subscribe("/carla/ego_vehicle/odometry", 1, &ContourTracker::callbackGetRobotOdom, this);
+		sub_robot_odom = nh.subscribe("/odometry", 1, &ContourTracker::callbackGetRobotOdom, this);
 	}
 	else if(m_VelocitySource == 1)
 	{
