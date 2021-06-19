@@ -26,15 +26,12 @@
 #include "SimpleTracker.h"
 #include "PolygonGenerator.h"
 #include "op_ros_helpers/ROSMapHandler.h"
+#include "op_ros_helpers/ROSVelocityHandler.h"
 
 #include <tf/transform_listener.h>
-#include <autoware_can_msgs/CANInfo.h>
-#include <nav_msgs/Odometry.h>
-#include <geometry_msgs/TwistStamped.h>
 #include <jsk_recognition_msgs/BoundingBoxArray.h>
 #include <autoware_msgs/CloudClusterArray.h>
 #include <autoware_msgs/DetectedObjectArray.h>
-#include <autoware_msgs/VehicleStatus.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <visualization_msgs/MarkerArray.h>
 
@@ -102,7 +99,6 @@ protected:
 	bool bNewClusters;
 	PlannerHNS::WayPoint m_CurrentPos;
 	PlannerHNS::VehicleState m_VehicleStatus;
-	int m_VelocitySource;
 	bool bNewCurrentPos;
 	PerceptionParams m_Params;
 	SimpleTracker m_ObstacleTracking;
@@ -124,6 +120,7 @@ protected:
 
 	std::vector<std::string>    m_LogData;
 	PlannerHNS::MapHandler m_MapHandler;
+	PlannerHNS::VelocityHandler m_VelHandler;
 	PlannerHNS::RoadNetwork m_Map;
 	bool bCommonParams;
 	std::string m_ExperimentFolderName;
@@ -161,20 +158,11 @@ protected:
 	ros::Subscriber sub_cloud_clusters;
 	ros::Subscriber sub_current_pose ;
 	ros::Subscriber sub_detected_objects;
-	ros::Subscriber sub_current_velocity;
-	ros::Subscriber sub_robot_odom;
-	ros::Subscriber sub_can_info;
-	ros::Subscriber sub_vehicle_status;
-
 
 	// Callback function for subscriber.
 	void callbackGetCloudClusters(const autoware_msgs::CloudClusterArrayConstPtr &msg);
 	void callbackGetCurrentPose(const geometry_msgs::PoseStampedConstPtr& msg);
 	void callbackGetDetectedObjects(const autoware_msgs::DetectedObjectArrayConstPtr& msg);
-	void callbackGetAutowareStatus(const geometry_msgs::TwistStampedConstPtr& msg);
-	void callbackGetCanInfo(const autoware_can_msgs::CANInfoConstPtr & msg);
-	void callbackGetRobotOdom(const nav_msgs::OdometryConstPtr& msg);
-	void callbackGetVehicleStatus(const autoware_msgs::VehicleStatusConstPtr & msg);
 
 	//Helper Functions
 	void VisualizeLocalTracking();

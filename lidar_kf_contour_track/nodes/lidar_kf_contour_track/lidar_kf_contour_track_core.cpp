@@ -64,24 +64,7 @@ ContourTracker::ContourTracker()
 	pub_AllTrackedObjects = nh.advertise<autoware_msgs::DetectedObjectArray>("/detection/contour_tracker/objects", 1);
 	sub_current_pose = nh.subscribe("/current_pose",   1, &ContourTracker::callbackGetCurrentPose, 	this);
 
-	if(m_VelocitySource == 0)
-	{
-		sub_robot_odom = nh.subscribe("/odometry", 1, &ContourTracker::callbackGetRobotOdom, this);
-	}
-	else if(m_VelocitySource == 1)
-	{
-		sub_current_velocity = nh.subscribe("/current_velocity", 1, &ContourTracker::callbackGetAutowareStatus, this);
-	}
-	else if(m_VelocitySource == 2)
-	{
-		sub_can_info = nh.subscribe("/can_info", 1, &ContourTracker::callbackGetCanInfo, this);
-	}
-	else if(m_VelocitySource == 3)
-	{
-		std::string vel_topic;
-		nh.getParam("/op_common_params/vehicle_status_topic", vel_topic);
-		sub_vehicle_status = nh.subscribe(vel_topic, 1, &ContourTracker::callbackGetVehicleStatus, this);
-	}
+	m_VelHandler.InitVelocityHandler(nh, PlannerHNS::CAR_BASIC_INFO(), &m_VehicleStatus, &m_CurrentPos);
 
 	if(m_Params.bEnableInternalVisualization)
 	{
@@ -205,11 +188,6 @@ void ContourTracker::ReadCommonParams()
 	if(!_nh.getParam("/op_common_params/enableLaneChange" , m_Params.bEnableLaneChange))
 	{
 		m_Params.bEnableLaneChange = false;
-	}
-
-	if(!_nh.getParam("/op_common_params/velocitySource", m_VelocitySource))
-	{
-		m_VelocitySource = 1;
 	}
 
 	_nh.getParam("/op_common_params/experimentName" , m_ExperimentFolderName);
@@ -655,45 +633,6 @@ void ContourTracker::callbackGetCurrentPose(const geometry_msgs::PoseStampedCons
   bNewCurrentPos = true;
 }
 
-void ContourTracker::callbackGetAutowareStatus(const geometry_msgs::TwistStampedConstPtr& msg)
-{
-	m_VehicleStatus.speed = msg->twist.linear.x;
-	m_CurrentPos.v = m_VehicleStatus.speed;
-	if(fabs(msg->twist.linear.x) > 0.25)
-	{
-		m_VehicleStatus.steer = atan(2.7 * msg->twist.angular.z/msg->twist.linear.x);
-	}
-	UtilityHNS::UtilityH::GetTickCount(m_VehicleStatus.tStamp);
-}
-
-void ContourTracker::callbackGetCanInfo(const autoware_can_msgs::CANInfoConstPtr& msg)
-{
-	m_VehicleStatus.speed = msg->speed/3.6;
-	m_CurrentPos.v = m_VehicleStatus.speed;
-	m_VehicleStatus.steer = msg->angle * 0.4 / 1.0;
-	UtilityHNS::UtilityH::GetTickCount(m_VehicleStatus.tStamp);
-}
-
-void ContourTracker::callbackGetRobotOdom(const nav_msgs::OdometryConstPtr& msg)
-{
-	m_VehicleStatus.speed = msg->twist.twist.linear.x;
-	m_CurrentPos.v = m_VehicleStatus.speed;
-	if(msg->twist.twist.linear.x != 0)
-	{
-		m_VehicleStatus.steer += atan(2.7 * msg->twist.twist.angular.z/msg->twist.twist.linear.x);
-	}
-	UtilityHNS::UtilityH::GetTickCount(m_VehicleStatus.tStamp);
-}
-
-void ContourTracker::callbackGetVehicleStatus(const autoware_msgs::VehicleStatusConstPtr & msg)
-{
-	m_VehicleStatus.speed = msg->speed/3.6;
-	m_VehicleStatus.steer = -msg->angle*DEG2RAD;
-	m_CurrentPos.v = m_VehicleStatus.speed;
-
-//	std::cout << "Vehicle Real Status, Speed: " << m_VehicleStatus.speed << ", Steer Angle: " << m_VehicleStatus.steer << ", Steermode: " << msg->steeringmode << ", Org angle: " << msg->angle <<  std::endl;
-}
-
 void ContourTracker::VisualizeLocalTracking()
 {
 	PlannerHNS::ROSHelpers::ConvertTrackedObjectsMarkers(m_CurrentPos, m_ObstacleTracking.m_DetectedObjects,
@@ -881,7 +820,8 @@ void ContourTracker::MainLoop()
 			ReadCommonParams();
 		}
 
-		if(!m_MapHandler.IsMapLoaded())
+		//Load the map if any filtering option is selected
+		if(m_Params.filterType != FILTER_DISABLE && !m_MapHandler.IsMapLoaded())
 		{
 			m_MapHandler.LoadMap(m_Map, m_Params.bEnableLaneChange);
 		}
