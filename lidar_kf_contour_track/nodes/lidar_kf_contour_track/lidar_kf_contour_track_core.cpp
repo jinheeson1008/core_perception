@@ -97,7 +97,8 @@ ContourTracker::ContourTracker()
 	//Mapping Section , load the map if any filtering option is selected
 	if(m_Params.filterType != FILTER_DISABLE)
 	{
-		m_MapHandler.SubscribeToMapMsgs(nh);
+		m_MapHandler.InitMapHandler(nh, "/op_common_params/mapSource",
+				"/op_common_params/mapFileName", "/op_common_params/lanelet2_origin");
 	}
 
 	m_nDummyObjPerRep = 150;
@@ -205,15 +206,6 @@ void ContourTracker::ReadCommonParams()
 	{
 		m_Params.bEnableLaneChange = false;
 	}
-
-	int iSource = 0;
-	_nh.getParam("/op_common_params/mapSource" , iSource);
-	std::string str_origin;
-	nh.getParam("/op_common_params/lanelet2_origin" , str_origin);
-	std::string str_mapPath;
-	_nh.getParam("/op_common_params/mapFileName" , str_mapPath);
-
-	m_MapHandler.UpdateMapTypeParams(iSource, str_mapPath, str_origin);
 
 	if(!_nh.getParam("/op_common_params/velocitySource", m_VelocitySource))
 	{
