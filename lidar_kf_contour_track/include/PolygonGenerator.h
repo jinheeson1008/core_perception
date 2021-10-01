@@ -74,7 +74,7 @@ public:
 			max_from_center = v;
 			bFirst = false;
 		}
-		else if(v.cost > max_from_center.cost)
+		else if(v.distanceCost > max_from_center.distanceCost)
 			max_from_center = v;
 
 		return true;
