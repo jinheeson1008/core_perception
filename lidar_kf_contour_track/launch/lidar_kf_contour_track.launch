@@ -40,6 +40,8 @@
 	<param name="tracking_type" value="$(arg tracking_type)" /> 
 	<param name="max_association_distance" value="$(arg max_association_distance)" />
 	<param name="max_association_size_diff" value="$(arg max_association_size_diff)" />
+	<param name="tracker_input_topic" value="$(arg tracker_input_topic)" />
+  	<param name="tracker_output_topic" value="$(arg tracker_output_topic)" /> 
 	
 	<param name="max_remeber_time" value="$(arg max_remeber_time)" />
 	<param name="trust_counter" value="$(arg trust_counter)" />		
