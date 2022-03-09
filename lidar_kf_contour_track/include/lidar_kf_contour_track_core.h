@@ -38,6 +38,8 @@
 namespace ContourTrackerNS
 {
 
+#define USE_CONVEX_HULL_FOR_OBJECT_REP
+
 enum MAP_FILTER_TYPE
 {
 	FILTER_DISABLE,

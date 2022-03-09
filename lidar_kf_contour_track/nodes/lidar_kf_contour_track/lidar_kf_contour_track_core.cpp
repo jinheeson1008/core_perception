@@ -457,8 +457,13 @@ void ContourTracker::ImportCloudClusters(const autoware_msgs::CloudClusterArray&
 		UtilityHNS::UtilityH::GetTickCount(poly_est_time);
 		point_cloud.clear();
 		pcl::fromROSMsg(msg.clusters.at(i).cloud, point_cloud);
+#ifdef USE_CONVEX_HULL_FOR_OBJECT_REP
+		ConvexHull hull;
+		obj.contour = hull.EstimateClusterHull(point_cloud ,obj.center.pos, m_Params.PolygonRes);
+#else
 		PolygonGenerator polyGen(m_Params.nQuarters);
 		obj.contour = polyGen.EstimateClusterPolygon(point_cloud ,obj.center.pos, avg_center, m_Params.PolygonRes);
+#endif
 
 		m_PolyEstimationTime += UtilityHNS::UtilityH::GetTimeDiffNow(poly_est_time);
 		m_nOriginalPoints += point_cloud.points.size();
@@ -538,8 +543,13 @@ void ContourTracker::ImportDetectedObjects(const autoware_msgs::DetectedObjectAr
 			UtilityHNS::UtilityH::GetTickCount(poly_est_time);
 			point_cloud.clear();
 			pcl::fromROSMsg(msg.objects.at(i).pointcloud, point_cloud);
+#ifdef USE_CONVEX_HULL_FOR_OBJECT_REP
+			ConvexHull hull;
+			obj.contour = hull.EstimateClusterHull(point_cloud ,obj.center.pos);
+#else
 			PolygonGenerator polyGen(m_Params.nQuarters);
 			obj.contour = polyGen.EstimateClusterPolygon(point_cloud ,obj.center.pos,avg_center, -1);
+#endif
 			m_PolyEstimationTime += UtilityHNS::UtilityH::GetTimeDiffNow(poly_est_time);
 		}
 
