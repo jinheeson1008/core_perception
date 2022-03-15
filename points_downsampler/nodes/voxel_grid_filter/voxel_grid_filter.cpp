@@ -60,7 +60,7 @@ static void scan_callback(const sensor_msgs::PointCloud2::ConstPtr& input)
   pcl::fromROSMsg(*input, scan);
 
   if(measurement_range != MAX_MEASUREMENT_RANGE){
-    scan = removePointsByRange(scan, 0, measurement_range);
+    scan = removePointsByRange(scan, 0, measurement_range); //Use 2.5 instead of 0 to remove car points, which results in self detection
   }
 
   pcl::PointCloud<pcl::PointXYZI>::Ptr scan_ptr(new pcl::PointCloud<pcl::PointXYZI>(scan));
